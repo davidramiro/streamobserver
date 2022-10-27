@@ -1,0 +1,22 @@
+chats:
+  # List of chat IDs to notify (private / group)
+  - chatid: 4242424242
+    streams:
+      twitch:
+      # List of Twitch usernames to observe
+        - username: "johndoe"
+        - username: "janedoe"
+      restreamer:
+      # List of restreamer instances to observe
+          # Server base URL
+        - baseurl: "https://stream.yourserver.tld"
+          # Channel ID
+          id: "channel-uuid"
+  - chatid: -10042424242
+    streams:
+      twitch:
+        - username: "johndoe"
+        - username: "janedoe"
+      restreamer:
+        - baseurl: "https://stream.yourserver.tld"
+          id: "channel-uuid"

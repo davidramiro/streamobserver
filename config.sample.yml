@@ -1,0 +1,7 @@
+telegram:
+  apikey: "Telegram-Bot-API-Key"
+twitch:
+  client-id: "Twitch-Client-ID"
+  client-secret: "Twitch-Client-Secret"
+general:
+  polling-interval: 180
