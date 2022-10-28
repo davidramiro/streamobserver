@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"github.com/rs/zerolog/log"
 )
 
 var bot *tgbotapi.BotAPI
@@ -20,17 +19,19 @@ const twitchPrefix = "https://twitch.tv/"
 const widthPlaceholder = "{width}"
 const heightPlaceholder = "{height}"
 const htmlSuffix = ".html"
+const liveText = "🔴 LIVE"
+const offlineText = "❌ OFFLINE"
 
 func InitBot() {
 	config, err := config.GetConfig()
 	if err != nil {
-		log.Panic().Err(err)
+		logger.Log.Panic().Err(err)
 		return
 	}
 
 	bot, err = tgbotapi.NewBotAPI(config.Telegram.ApiKey)
 	if err != nil {
-		log.Panic().Err(err)
+		logger.Log.Panic().Err(err)
 		return
 	}
 
@@ -39,38 +40,30 @@ func InitBot() {
 	logger.Log.Info().Msgf("Authorized on Telegram account %s", bot.Self.UserName)
 }
 
-func SendMessage(msg string) {
+func SendTwitchStreamInfo(chatID int64, stream twitch.Stream) (tgbotapi.Message, error) {
 	if bot == nil {
 		logger.Log.Error().Msg("Bot not initialized.")
-		return
+		return tgbotapi.Message{}, nil
 	}
-	msgToSend := tgbotapi.NewMessage(434289657, msg)
-	_, err := bot.Send(msgToSend)
-	if err != nil {
-		logger.Log.Error().Err(err)
-	}
-}
-
-func SendTwitchStreamInfo(chatID int64, stream twitch.Stream) {
-	if bot == nil {
-		logger.Log.Error().Msg("Bot not initialized.")
-		return
-	}
-
-	// newphoto := tgbotapi.NewPhoto(434289657, )
 
 	formattedUrl := formatTwitchPhotoUrl(stream.ThumbnailURL)
-	caption := "*" + stream.UserName + "* is playing *" + stream.GameName + "*: " + stream.Title + "\n" + twitchPrefix + stream.UserName
+	caption := "*" + stream.UserName + "* is playing *" + stream.GameName + "*: " + stream.Title + "\n" + twitchPrefix + stream.UserName + " [" + liveText + "]"
 
-	photoMessage := createPhotoMessage(caption, chatID, formattedUrl)
+	photoMessage, err := createPhotoMessage(caption, chatID, formattedUrl)
+	if err != nil {
+		return tgbotapi.Message{}, errors.New("could not send message")
+	}
 
-	bot.Send(photoMessage)
+	ret, _ := bot.Send(photoMessage)
+	logger.Log.Debug().Interface("Message", ret).Msg("Sent message.")
+
+	return ret, nil
 }
 
-func SendRestreamerStreamInfo(chatID int64, streamInfo restreamer.StreamInfo, stream restreamer.Stream) {
+func SendRestreamerStreamInfo(chatID int64, streamInfo restreamer.StreamInfo, stream restreamer.Stream) (tgbotapi.Message, error) {
 	if bot == nil {
 		logger.Log.Error().Msg("Bot not initialized.")
-		return
+		return tgbotapi.Message{}, errors.New("bot not initialized")
 	}
 
 	var streamLink string
@@ -80,11 +73,25 @@ func SendRestreamerStreamInfo(chatID int64, streamInfo restreamer.StreamInfo, st
 		streamLink = stream.CustomURL
 	}
 
-	caption := "*" + streamInfo.UserName + "* is streaming: " + streamInfo.Description + "\n" + streamLink
+	caption := "*" + streamInfo.UserName + "* is streaming: " + streamInfo.Description + "\n" + streamLink + " [" + liveText + "]"
 
-	photoMessage := createPhotoMessage(caption, chatID, streamInfo.ThumbnailURL)
+	photoMessage, err := createPhotoMessage(caption, chatID, streamInfo.ThumbnailURL)
+	if err != nil {
+		return tgbotapi.Message{}, errors.New("could not send message")
+	}
 
-	bot.Send(photoMessage)
+	ret, _ := bot.Send(photoMessage)
+	logger.Log.Debug().Interface("Message", ret).Msg("Sent message.")
+
+	return ret, nil
+}
+
+func UpdateStreamMessage(message tgbotapi.Message, chatID int64) {
+	logger.Log.Debug().Interface("Message", message).Msg("Updating Message")
+
+	newtext := strings.Replace(message.Caption, liveText, offlineText, 1)
+	config := tgbotapi.NewEditMessageCaption(chatID, message.MessageID, newtext)
+	bot.Send(config)
 }
 
 func formatTwitchPhotoUrl(url string) string {
@@ -94,10 +101,11 @@ func formatTwitchPhotoUrl(url string) string {
 	return resized
 }
 
-func createPhotoMessage(caption string, chatID int64, url string) tgbotapi.PhotoConfig {
+func createPhotoMessage(caption string, chatID int64, url string) (tgbotapi.PhotoConfig, error) {
 	photoBytes, err := getPhotoFromUrl(url)
 	if err != nil {
 		logger.Log.Error().Err(err).Msg("Could not send Photo on Telegram")
+		return tgbotapi.PhotoConfig{}, errors.New("sending photo failed")
 	}
 
 	photoFileBytes := tgbotapi.FileBytes{
@@ -107,7 +115,7 @@ func createPhotoMessage(caption string, chatID int64, url string) tgbotapi.Photo
 	config := tgbotapi.NewPhoto(chatID, photoFileBytes)
 	config.Caption = caption
 	config.ParseMode = tgbotapi.ModeMarkdown
-	return config
+	return config, nil
 
 }
 
@@ -116,6 +124,9 @@ func getPhotoFromUrl(url string) ([]byte, error) {
 	response, e := http.Get(url)
 	if e != nil {
 		logger.Log.Fatal().Err(e)
+		return nil, errors.New("could not fetch image from URL")
+	}
+	if response.StatusCode != 200 {
 		return nil, errors.New("could not fetch image from URL")
 	}
 

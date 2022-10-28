@@ -8,6 +8,7 @@ import (
 	"streamobserver/internal/telegram"
 	"streamobserver/internal/twitch"
 
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"gopkg.in/yaml.v2"
 )
 
@@ -18,15 +19,17 @@ type TelegramChat struct {
 }
 
 type TwitchStream struct {
-	username string
-	Status   bool
-	Notified bool
+	username            string
+	Status              bool
+	Notified            bool
+	NotificationMessage tgbotapi.Message
 }
 
 type RestreamerStream struct {
-	Stream   restreamer.Stream
-	Status   bool
-	Notified bool
+	Stream              restreamer.Stream
+	Status              bool
+	Notified            bool
+	NotificationMessage tgbotapi.Message
 }
 
 type NotifierConfig struct {
@@ -41,8 +44,9 @@ type ChatConfig struct {
 		} `yaml:"twitch"`
 
 		Restreamer []struct {
-			BaseURL string `yaml:"baseurl"`
-			ID      string `yaml:"id"`
+			BaseURL   string `yaml:"baseurl"`
+			ID        string `yaml:"id"`
+			CustomURL string `yaml:"customurl`
 		} `yaml:"restreamer"`
 	} `yaml:"streams"`
 }
@@ -85,8 +89,9 @@ func PopulateObservers() {
 		for _, rs := range s.Streams.Restreamer {
 			restreamerData := new(RestreamerStream)
 			restreamerData.Stream = restreamer.Stream{
-				BaseURL: rs.BaseURL,
-				ID:      rs.ID,
+				BaseURL:   rs.BaseURL,
+				ID:        rs.ID,
+				CustomURL: rs.CustomURL,
 			}
 			restreamerData.Notified = false
 			restreamerData.Status = false
@@ -122,13 +127,23 @@ func checkAndNotifyTwitch(streamToCheck *TwitchStream, chatID int64) {
 			streamToCheck.Status = true
 			if !streamToCheck.Notified {
 				logger.Log.Debug().Str("Channel", streamToCheck.username).Msg("Status change and notification needed.")
+
+				var err error
+				streamToCheck.NotificationMessage, err = telegram.SendTwitchStreamInfo(chatID, streamResponse[0])
+				if err != nil {
+					logger.Log.Error().Int64("ChatID", chatID).Str("Channel", streamToCheck.username).Err(err).Msg("Could not notify about channel status.")
+					streamToCheck.Notified = false
+					streamToCheck.Status = false
+				}
 				streamToCheck.Notified = true
-				telegram.SendTwitchStreamInfo(chatID, streamResponse[0])
 			}
 		} else {
 			logger.Log.Debug().Str("Channel", streamToCheck.username).Msg("Online and status has not changed.")
 		}
 	} else {
+		if streamToCheck.Status && streamToCheck.Notified && streamToCheck.NotificationMessage.MessageID != 0 {
+			telegram.UpdateStreamMessage(streamToCheck.NotificationMessage, chatID)
+		}
 		logger.Log.Debug().Str("Channel", streamToCheck.username).Msg("Channel offline.")
 		streamToCheck.Status = false
 		streamToCheck.Notified = false
@@ -150,13 +165,22 @@ func checkAndNotifyRestreamer(streamToCheck *RestreamerStream, chatID int64) {
 			streamToCheck.Status = true
 			if !streamToCheck.Notified {
 				logger.Log.Debug().Str("Channel", streamInfo.UserName).Msg("Status change and notification needed.")
+				var err error
+				streamToCheck.NotificationMessage, err = telegram.SendRestreamerStreamInfo(chatID, streamInfo, streamToCheck.Stream)
+				if err != nil {
+					logger.Log.Error().Int64("ChatID", chatID).Str("Channel", streamToCheck.Stream.ID).Err(err).Msg("Could not notify about channel status.")
+					streamToCheck.Notified = false
+					streamToCheck.Status = false
+				}
 				streamToCheck.Notified = true
-				telegram.SendRestreamerStreamInfo(chatID, streamInfo, streamToCheck.Stream)
 			}
 		} else {
 			logger.Log.Debug().Str("Channel", streamInfo.UserName).Msg("Online and status has not changed.")
 		}
 	} else {
+		if streamToCheck.Status && streamToCheck.Notified && streamToCheck.NotificationMessage.MessageID != 0 {
+			telegram.UpdateStreamMessage(streamToCheck.NotificationMessage, chatID)
+		}
 		logger.Log.Debug().Str("Channel", streamToCheck.Stream.ID).Msg("Channel offline.")
 		streamToCheck.Status = false
 		streamToCheck.Notified = false

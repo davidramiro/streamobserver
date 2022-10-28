@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 
@@ -40,6 +41,10 @@ func GetConfig() (*Config, error) {
 	// start YAML decoding from file
 	if err := d.Decode(&config); err != nil {
 		return nil, err
+	}
+
+	if (&Config{}) == config {
+		return nil, errors.New("config is empty")
 	}
 
 	return config, err
