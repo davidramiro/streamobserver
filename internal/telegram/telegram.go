@@ -22,6 +22,7 @@ const htmlSuffix = ".html"
 const liveText = "🔴 LIVE"
 const offlineText = "❌ OFFLINE"
 
+// InitBot initializes the Telegram bot to send updates with.
 func InitBot() {
 	config, err := config.GetConfig()
 	if err != nil {
@@ -40,6 +41,7 @@ func InitBot() {
 	logger.Log.Info().Msgf("Authorized on Telegram account %s", bot.Self.UserName)
 }
 
+// SendTwitchStreamInfo generates a message from a Twitch stream struct and sends it to a chat ID.
 func SendTwitchStreamInfo(chatID int64, stream twitch.Stream) (tgbotapi.Message, error) {
 	if bot == nil {
 		logger.Log.Error().Msg("Bot not initialized.")
@@ -60,6 +62,7 @@ func SendTwitchStreamInfo(chatID int64, stream twitch.Stream) (tgbotapi.Message,
 	return ret, nil
 }
 
+// SendRestreamerStreamInfo generates a message from a Restreamer stream struct and sends it to a chat ID.
 func SendRestreamerStreamInfo(chatID int64, streamInfo restreamer.StreamInfo, stream restreamer.Stream) (tgbotapi.Message, error) {
 	if bot == nil {
 		logger.Log.Error().Msg("Bot not initialized.")
@@ -86,7 +89,8 @@ func SendRestreamerStreamInfo(chatID int64, streamInfo restreamer.StreamInfo, st
 	return ret, nil
 }
 
-func UpdateStreamMessage(message tgbotapi.Message, chatID int64) {
+// UpdateMessageStreamOffline takes a previously sent message and edits it to reflect the changed stream status.
+func UpdateMessageStreamOffline(message tgbotapi.Message, chatID int64) {
 	logger.Log.Debug().Interface("Message", message).Msg("Updating Message")
 
 	newtext := strings.Replace(message.Caption, liveText, offlineText, 1)

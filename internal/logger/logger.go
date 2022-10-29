@@ -6,8 +6,10 @@ import (
 	"github.com/rs/zerolog"
 )
 
+// Log is the global logger for the application.
 var Log zerolog.Logger
 
+// InitLog initializes the global logger, setting the log level according to the debug parameter.
 func InitLog(isDebug bool) {
 	consoleWriter := zerolog.ConsoleWriter{Out: os.Stdout}
 	multi := zerolog.MultiLevelWriter(consoleWriter, os.Stdout)

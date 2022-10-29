@@ -6,12 +6,14 @@ import (
 	"streamobserver/internal/logger"
 )
 
+// StreamInfo contains Restreamer stream metadata
 type StreamInfo struct {
 	Description  string `json:"description"`
 	UserName     string `json:"author_name"`
 	ThumbnailURL string `json:"thumbnail_url"`
 }
 
+// Stream contains the basic info used to poll a stream from Restreamer
 type Stream struct {
 	BaseURL   string
 	ID        string
@@ -23,6 +25,7 @@ const internalPath = "/memfs/"
 const embedSuffix = "/oembed.json"
 const playlistSuffix = ".m3u8"
 
+// CheckStreamLive returns if a Restreamer stream is online
 func CheckStreamLive(stream Stream) bool {
 	url := stream.BaseURL + internalPath + stream.ID + playlistSuffix
 	logger.Log.Debug().Str("URL", url).Msg("Restreamer: Checking URL for HTTP OK")
@@ -36,6 +39,7 @@ func CheckStreamLive(stream Stream) bool {
 	return resp.StatusCode == 200
 }
 
+// GetStreamInfo returns the metadata of a stream, if online
 func GetStreamInfo(stream Stream) (StreamInfo, error) {
 
 	url := stream.BaseURL + channelPath + stream.ID + embedSuffix

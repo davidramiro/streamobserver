@@ -12,31 +12,31 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-type TelegramChat struct {
-	TwitchStreams     []TwitchStream
-	RestreamerStreams []RestreamerStream
-	ChatID            int64
+type telegramChat struct {
+	twitchStreams     []twitchStream
+	restreamerStreams []restreamerStream
+	chatID            int64
 }
 
-type TwitchStream struct {
+type twitchStream struct {
 	username            string
-	Status              bool
-	Notified            bool
-	NotificationMessage tgbotapi.Message
+	status              bool
+	notified            bool
+	notificationMessage tgbotapi.Message
 }
 
-type RestreamerStream struct {
-	Stream              restreamer.Stream
-	Status              bool
-	Notified            bool
-	NotificationMessage tgbotapi.Message
+type restreamerStream struct {
+	stream              restreamer.Stream
+	status              bool
+	notified            bool
+	notificationMessage tgbotapi.Message
 }
 
-type NotifierConfig struct {
-	Chats []*ChatConfig `yaml:"chats"`
+type notifierConfig struct {
+	Chats []*chatConfig `yaml:"chats"`
 }
 
-type ChatConfig struct {
+type chatConfig struct {
 	ChatID  int64 `yaml:"chatid"`
 	Streams struct {
 		Twitch []struct {
@@ -46,15 +46,16 @@ type ChatConfig struct {
 		Restreamer []struct {
 			BaseURL   string `yaml:"baseurl"`
 			ID        string `yaml:"id"`
-			CustomURL string `yaml:"customurl`
+			CustomURL string `yaml:"customurl"`
 		} `yaml:"restreamer"`
 	} `yaml:"streams"`
 }
 
-var streams = make([]TelegramChat, 1)
+var streams = make([]telegramChat, 1)
 
+// PopulateObservers parses the streams config file.
 func PopulateObservers() {
-	config := &NotifierConfig{}
+	config := &notifierConfig{}
 
 	// Open streams.yml
 	p := filepath.FromSlash("./streams.yml")
@@ -73,116 +74,117 @@ func PopulateObservers() {
 
 	// Chats from Config
 	for _, s := range config.Chats {
-		chat := &TelegramChat{}
-		chat.ChatID = s.ChatID
+		chat := &telegramChat{}
+		chat.chatID = s.ChatID
 		// Twitch streams for each chat
 		for _, tw := range s.Streams.Twitch {
-			twitchData := new(TwitchStream)
+			twitchData := new(twitchStream)
 			twitchData.username = tw.Username
-			twitchData.Notified = false
-			twitchData.Status = false
+			twitchData.notified = false
+			twitchData.status = false
 
-			chat.TwitchStreams = append(chat.TwitchStreams, *twitchData)
+			chat.twitchStreams = append(chat.twitchStreams, *twitchData)
 		}
 
 		// Restreamer streams for each chat
 		for _, rs := range s.Streams.Restreamer {
-			restreamerData := new(RestreamerStream)
-			restreamerData.Stream = restreamer.Stream{
+			restreamerData := new(restreamerStream)
+			restreamerData.stream = restreamer.Stream{
 				BaseURL:   rs.BaseURL,
 				ID:        rs.ID,
 				CustomURL: rs.CustomURL,
 			}
-			restreamerData.Notified = false
-			restreamerData.Status = false
-			chat.RestreamerStreams = append(chat.RestreamerStreams, *restreamerData)
+			restreamerData.notified = false
+			restreamerData.status = false
+			chat.restreamerStreams = append(chat.restreamerStreams, *restreamerData)
 		}
 
 		streams = append(streams, *chat)
 	}
 }
 
+// Notify starts the notification process and checks the configured streams for updates.
 func Notify() {
 	logger.Log.Debug().Msg("Started notify iteration")
 	for i := range streams {
-		for j := range streams[i].TwitchStreams {
-			checkAndNotifyTwitch(&streams[i].TwitchStreams[j], streams[i].ChatID)
+		for j := range streams[i].twitchStreams {
+			checkAndNotifyTwitch(&streams[i].twitchStreams[j], streams[i].chatID)
 		}
-		for j := range streams[i].RestreamerStreams {
-			checkAndNotifyRestreamer(&streams[i].RestreamerStreams[j], streams[i].ChatID)
+		for j := range streams[i].restreamerStreams {
+			checkAndNotifyRestreamer(&streams[i].restreamerStreams[j], streams[i].chatID)
 		}
 	}
 
 }
 
-func checkAndNotifyTwitch(streamToCheck *TwitchStream, chatID int64) {
+func checkAndNotifyTwitch(streamToCheck *twitchStream, chatID int64) {
 	logger.Log.Info().Str("Channel", streamToCheck.username).Msg("Twitch: Checking status")
 
 	// Get stream status and metadata from API
 	streamResponse := twitch.GetStreams([]string{streamToCheck.username})
 	// List populated means stream is online
 	if len(streamResponse) > 0 {
-		if !streamToCheck.Status {
+		if !streamToCheck.status {
 			logger.Log.Debug().Str("Channel", streamToCheck.username).Msg("Online and status has changed.")
-			streamToCheck.Status = true
-			if !streamToCheck.Notified {
+			streamToCheck.status = true
+			if !streamToCheck.notified {
 				logger.Log.Debug().Str("Channel", streamToCheck.username).Msg("Status change and notification needed.")
 
 				var err error
-				streamToCheck.NotificationMessage, err = telegram.SendTwitchStreamInfo(chatID, streamResponse[0])
+				streamToCheck.notificationMessage, err = telegram.SendTwitchStreamInfo(chatID, streamResponse[0])
 				if err != nil {
 					logger.Log.Error().Int64("ChatID", chatID).Str("Channel", streamToCheck.username).Err(err).Msg("Could not notify about channel status.")
-					streamToCheck.Notified = false
-					streamToCheck.Status = false
+					streamToCheck.notified = false
+					streamToCheck.status = false
 				}
-				streamToCheck.Notified = true
+				streamToCheck.notified = true
 			}
 		} else {
 			logger.Log.Debug().Str("Channel", streamToCheck.username).Msg("Online and status has not changed.")
 		}
 	} else {
-		if streamToCheck.Status && streamToCheck.Notified && streamToCheck.NotificationMessage.MessageID != 0 {
-			telegram.UpdateStreamMessage(streamToCheck.NotificationMessage, chatID)
+		if streamToCheck.status && streamToCheck.notified && streamToCheck.notificationMessage.MessageID != 0 {
+			telegram.UpdateMessageStreamOffline(streamToCheck.notificationMessage, chatID)
 		}
 		logger.Log.Debug().Str("Channel", streamToCheck.username).Msg("Channel offline.")
-		streamToCheck.Status = false
-		streamToCheck.Notified = false
+		streamToCheck.status = false
+		streamToCheck.notified = false
 	}
 }
 
-func checkAndNotifyRestreamer(streamToCheck *RestreamerStream, chatID int64) {
-	logger.Log.Info().Str("Channel", streamToCheck.Stream.ID).Msg("Restreamer: Checking status")
-	online := restreamer.CheckStreamLive(streamToCheck.Stream)
+func checkAndNotifyRestreamer(streamToCheck *restreamerStream, chatID int64) {
+	logger.Log.Info().Str("Channel", streamToCheck.stream.ID).Msg("Restreamer: Checking status")
+	online := restreamer.CheckStreamLive(streamToCheck.stream)
 	if online {
-		streamInfo, err := restreamer.GetStreamInfo(streamToCheck.Stream)
+		streamInfo, err := restreamer.GetStreamInfo(streamToCheck.stream)
 		if err != nil {
-			streamToCheck.Notified = false
-			streamToCheck.Status = false
+			streamToCheck.notified = false
+			streamToCheck.status = false
 			logger.Log.Error().Err(err).Msg("Restreamer appears to be online, could not fetch info")
 		}
-		if !streamToCheck.Status {
+		if !streamToCheck.status {
 			logger.Log.Debug().Str("Channel", streamInfo.UserName).Msg("Online and status has changed.")
-			streamToCheck.Status = true
-			if !streamToCheck.Notified {
+			streamToCheck.status = true
+			if !streamToCheck.notified {
 				logger.Log.Debug().Str("Channel", streamInfo.UserName).Msg("Status change and notification needed.")
 				var err error
-				streamToCheck.NotificationMessage, err = telegram.SendRestreamerStreamInfo(chatID, streamInfo, streamToCheck.Stream)
+				streamToCheck.notificationMessage, err = telegram.SendRestreamerStreamInfo(chatID, streamInfo, streamToCheck.stream)
 				if err != nil {
-					logger.Log.Error().Int64("ChatID", chatID).Str("Channel", streamToCheck.Stream.ID).Err(err).Msg("Could not notify about channel status.")
-					streamToCheck.Notified = false
-					streamToCheck.Status = false
+					logger.Log.Error().Int64("ChatID", chatID).Str("Channel", streamToCheck.stream.ID).Err(err).Msg("Could not notify about channel status.")
+					streamToCheck.notified = false
+					streamToCheck.status = false
 				}
-				streamToCheck.Notified = true
+				streamToCheck.notified = true
 			}
 		} else {
 			logger.Log.Debug().Str("Channel", streamInfo.UserName).Msg("Online and status has not changed.")
 		}
 	} else {
-		if streamToCheck.Status && streamToCheck.Notified && streamToCheck.NotificationMessage.MessageID != 0 {
-			telegram.UpdateStreamMessage(streamToCheck.NotificationMessage, chatID)
+		if streamToCheck.status && streamToCheck.notified && streamToCheck.notificationMessage.MessageID != 0 {
+			telegram.UpdateMessageStreamOffline(streamToCheck.notificationMessage, chatID)
 		}
-		logger.Log.Debug().Str("Channel", streamToCheck.Stream.ID).Msg("Channel offline.")
-		streamToCheck.Status = false
-		streamToCheck.Notified = false
+		logger.Log.Debug().Str("Channel", streamToCheck.stream.ID).Msg("Channel offline.")
+		streamToCheck.status = false
+		streamToCheck.notified = false
 	}
 }

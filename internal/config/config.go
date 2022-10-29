@@ -8,6 +8,7 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+// Config contains all the settings parsed from the config file.
 type Config struct {
 	Telegram struct {
 		ApiKey string `yaml:"apikey"`
@@ -23,6 +24,8 @@ type Config struct {
 	} `yaml:"general"`
 }
 
+// GetConfig parses a config.yml file placed in the root execution path containing credentials and settings for the application.
+// It returns an object containing the parsed settings.
 func GetConfig() (*Config, error) {
 
 	config := &Config{}
