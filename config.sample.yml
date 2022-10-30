@@ -5,3 +5,4 @@ twitch:
   client-secret: "Twitch-Client-Secret"
 general:
   polling-interval: 180
+  test-chatid: -1004242424242

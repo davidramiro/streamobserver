@@ -15,15 +15,17 @@ import (
 
 var bot *tgbotapi.BotAPI
 
-const twitchPrefix = "https://twitch.tv/"
-const widthPlaceholder = "{width}"
-const heightPlaceholder = "{height}"
-const htmlSuffix = ".html"
-const liveText = "🔴 LIVE"
-const offlineText = "❌ OFFLINE"
+const (
+	twitchPrefix      = "https://twitch.tv/"
+	widthPlaceholder  = "{width}"
+	heightPlaceholder = "{height}"
+	htmlSuffix        = ".html"
+	liveText          = "🔴 LIVE"
+	offlineText       = "❌ OFFLINE"
+)
 
 // InitBot initializes the Telegram bot to send updates with.
-func InitBot() {
+func InitBot(debug bool) {
 	config, err := config.GetConfig()
 	if err != nil {
 		logger.Log.Panic().Err(err)
@@ -36,7 +38,7 @@ func InitBot() {
 		return
 	}
 
-	bot.Debug = true
+	bot.Debug = debug
 
 	logger.Log.Info().Msgf("Authorized on Telegram account %s", bot.Self.UserName)
 }
@@ -45,7 +47,7 @@ func InitBot() {
 func SendTwitchStreamInfo(chatID int64, stream twitch.Stream) (tgbotapi.Message, error) {
 	if bot == nil {
 		logger.Log.Error().Msg("Bot not initialized.")
-		return tgbotapi.Message{}, nil
+		return tgbotapi.Message{}, errors.New("bot not initialized")
 	}
 
 	formattedUrl := formatTwitchPhotoUrl(stream.ThumbnailURL)
@@ -56,8 +58,16 @@ func SendTwitchStreamInfo(chatID int64, stream twitch.Stream) (tgbotapi.Message,
 		return tgbotapi.Message{}, errors.New("could not send message")
 	}
 
-	ret, _ := bot.Send(photoMessage)
+	ret, err := bot.Send(photoMessage)
 	logger.Log.Debug().Interface("Message", ret).Msg("Sent message.")
+
+	if err != nil {
+		logger.Log.Error().Err(err).Msg("error sending Telegram message")
+		return tgbotapi.Message{}, err
+	}
+	if ret.Chat.ID != chatID {
+		return tgbotapi.Message{}, errors.New("error sending Telegram message")
+	}
 
 	return ret, nil
 }
@@ -83,19 +93,37 @@ func SendRestreamerStreamInfo(chatID int64, streamInfo restreamer.StreamInfo, st
 		return tgbotapi.Message{}, errors.New("could not send message")
 	}
 
-	ret, _ := bot.Send(photoMessage)
+	ret, err := bot.Send(photoMessage)
 	logger.Log.Debug().Interface("Message", ret).Msg("Sent message.")
+
+	if err != nil {
+		logger.Log.Error().Err(err).Msg("error sending Telegram message")
+		return tgbotapi.Message{}, err
+	}
+	if ret.Chat.ID != chatID {
+		return tgbotapi.Message{}, errors.New("error sending Telegram message")
+	}
 
 	return ret, nil
 }
 
 // UpdateMessageStreamOffline takes a previously sent message and edits it to reflect the changed stream status.
-func UpdateMessageStreamOffline(message tgbotapi.Message, chatID int64) {
+func UpdateMessageStreamOffline(message tgbotapi.Message, chatID int64) (tgbotapi.Message, error) {
 	logger.Log.Debug().Interface("Message", message).Msg("Updating Message")
 
 	newtext := strings.Replace(message.Caption, liveText, offlineText, 1)
 	config := tgbotapi.NewEditMessageCaption(chatID, message.MessageID, newtext)
-	bot.Send(config)
+	ret, err := bot.Send(config)
+
+	if err != nil {
+		logger.Log.Error().Err(err).Msg("error updating Telegram message")
+		return tgbotapi.Message{}, err
+	}
+	if ret.Chat.ID != chatID {
+		return tgbotapi.Message{}, errors.New("error updating Telegram message")
+	}
+
+	return ret, nil
 }
 
 func formatTwitchPhotoUrl(url string) string {
@@ -108,8 +136,8 @@ func formatTwitchPhotoUrl(url string) string {
 func createPhotoMessage(caption string, chatID int64, url string) (tgbotapi.PhotoConfig, error) {
 	photoBytes, err := getPhotoFromUrl(url)
 	if err != nil {
-		logger.Log.Error().Err(err).Msg("Could not send Photo on Telegram")
-		return tgbotapi.PhotoConfig{}, errors.New("sending photo failed")
+		logger.Log.Error().Err(err).Msg("Could not send photo on Telegram")
+		return tgbotapi.PhotoConfig{}, errors.New("could not retrieve photo")
 	}
 
 	photoFileBytes := tgbotapi.FileBytes{

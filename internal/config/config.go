@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 // Config contains all the settings parsed from the config file.
@@ -14,21 +14,26 @@ type Config struct {
 		ApiKey string `yaml:"apikey"`
 	} `yaml:"telegram"`
 
-	Twitch struct {
-		ClientID     string `yaml:"client-id"`
-		ClientSecret string `yaml:"client-secret"`
-	} `yaml:"twitch"`
+	Twitch `yaml:"twitch"`
 
 	General struct {
-		PollingInterval int `yaml:"polling-interval"`
+		PollingInterval int   `yaml:"polling-interval"`
+		TestChatID      int64 `yaml:"test-chatid"`
 	} `yaml:"general"`
 }
+
+type Twitch struct {
+	ClientID     string `yaml:"client-id"`
+	ClientSecret string `yaml:"client-secret"`
+}
+
+var config *Config
 
 // GetConfig parses a config.yml file placed in the root execution path containing credentials and settings for the application.
 // It returns an object containing the parsed settings.
 func GetConfig() (*Config, error) {
 
-	config := &Config{}
+	config = &Config{}
 
 	// open config file
 	p := filepath.FromSlash("./config.yml")

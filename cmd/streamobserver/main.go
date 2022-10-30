@@ -20,10 +20,10 @@ func main() {
 	} else {
 		zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	}
-	logger.InitLog(*debug)
+	logger.InitLog()
 
 	// start telegram bot
-	telegram.InitBot()
+	telegram.InitBot(*debug)
 
 	// set up observers from streams config
 	notifier.PopulateObservers()

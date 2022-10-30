@@ -1,6 +1,7 @@
 package notifier
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"streamobserver/internal/logger"
@@ -9,7 +10,7 @@ import (
 	"streamobserver/internal/twitch"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 type telegramChat struct {
@@ -51,7 +52,7 @@ type chatConfig struct {
 	} `yaml:"streams"`
 }
 
-var streams = make([]telegramChat, 1)
+var chats = make([]telegramChat, 1)
 
 // PopulateObservers parses the streams config file.
 func PopulateObservers() {
@@ -99,19 +100,19 @@ func PopulateObservers() {
 			chat.restreamerStreams = append(chat.restreamerStreams, *restreamerData)
 		}
 
-		streams = append(streams, *chat)
+		chats = append(chats, *chat)
 	}
 }
 
 // Notify starts the notification process and checks the configured streams for updates.
 func Notify() {
 	logger.Log.Debug().Msg("Started notify iteration")
-	for i := range streams {
-		for j := range streams[i].twitchStreams {
-			checkAndNotifyTwitch(&streams[i].twitchStreams[j], streams[i].chatID)
+	for i := range chats {
+		for j := range chats[i].twitchStreams {
+			checkAndNotifyTwitch(&chats[i].twitchStreams[j], chats[i].chatID)
 		}
-		for j := range streams[i].restreamerStreams {
-			checkAndNotifyRestreamer(&streams[i].restreamerStreams[j], streams[i].chatID)
+		for j := range chats[i].restreamerStreams {
+			checkAndNotifyRestreamer(&chats[i].restreamerStreams[j], chats[i].chatID)
 		}
 	}
 
@@ -121,7 +122,12 @@ func checkAndNotifyTwitch(streamToCheck *twitchStream, chatID int64) {
 	logger.Log.Info().Str("Channel", streamToCheck.username).Msg("Twitch: Checking status")
 
 	// Get stream status and metadata from API
-	streamResponse := twitch.GetStreams([]string{streamToCheck.username})
+	streamResponse, err := twitch.GetStreams([]string{streamToCheck.username})
+	if err != nil {
+		logger.Log.Error().Err(errors.New("error getting info from Twitch API"))
+		return
+	}
+
 	// List populated means stream is online
 	if len(streamResponse) > 0 {
 		if !streamToCheck.status {
