@@ -57,3 +57,13 @@ func GetConfig() (*Config, error) {
 
 	return config, err
 }
+
+func CheckPresent() (bool, error) {
+	if _, err := os.Stat("./config.yml"); errors.Is(err, os.ErrNotExist) {
+		return false, errors.New("config.yml not found")
+	}
+	if _, err := os.Stat("./streams.yml"); errors.Is(err, os.ErrNotExist) {
+		return false, errors.New("config.yml not found")
+	}
+	return true, nil
+}

@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"streamobserver/internal/config"
 	"streamobserver/internal/logger"
 	"streamobserver/internal/notifier"
@@ -21,6 +22,13 @@ func main() {
 		zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	}
 	logger.InitLog()
+
+	confExists, err := config.CheckPresent()
+	if err != nil || !confExists {
+		logger.Log.Error().Msg("config.yml and/or streams.yml not found. Press [ENTER] to exit.")
+		fmt.Scanln()
+		return
+	}
 
 	// start telegram bot
 	telegram.InitBot(*debug)
