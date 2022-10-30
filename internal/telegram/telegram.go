@@ -48,8 +48,7 @@ func SendTwitchStreamInfo(chatID int64, stream twitch.Stream) (tgbotapi.Message,
 	}
 
 	util.FormatTwitchPhotoUrl(&stream.ThumbnailURL)
-	caption := "*" + stream.UserName + "* is playing *" + stream.GameName + "*: " + stream.Title + "\n" + twitchPrefix + stream.UserName + " [" + liveText + "]"
-	util.ReplaceMarkdownCaption(&caption)
+	caption := "<b>" + stream.UserName + "</b> is playing <b>" + stream.GameName + "</b>: " + stream.Title + "\n" + twitchPrefix + stream.UserName + " [" + liveText + "]"
 
 	photoMessage, err := createPhotoMessage(caption, chatID, stream.ThumbnailURL)
 	if err != nil {
@@ -84,8 +83,7 @@ func SendRestreamerStreamInfo(chatID int64, streamInfo restreamer.StreamInfo, st
 		streamLink = stream.CustomURL
 	}
 
-	caption := "*" + streamInfo.UserName + "* is streaming: " + streamInfo.Description + "\n" + streamLink + " [" + liveText + "]"
-	util.ReplaceMarkdownCaption(&caption)
+	caption := "<b>" + streamInfo.UserName + "</b> is streaming: " + streamInfo.Description + "\n" + streamLink + " [" + liveText + "]"
 
 	photoMessage, err := createPhotoMessage(caption, chatID, streamInfo.ThumbnailURL)
 	if err != nil {
@@ -106,12 +104,39 @@ func SendRestreamerStreamInfo(chatID int64, streamInfo restreamer.StreamInfo, st
 	return ret, nil
 }
 
-// UpdateMessageStreamOffline takes a previously sent message and edits it to reflect the changed stream status.
-func UpdateMessageStreamOffline(message tgbotapi.Message, chatID int64) (tgbotapi.Message, error) {
+// SendUpdateTwitchStreamInfo updates a previously sent message with new stream info.
+func SendUpdateTwitchStreamInfo(chatID int64, message tgbotapi.Message, stream twitch.Stream) (tgbotapi.Message, error) {
+	if bot == nil {
+		logger.Log.Error().Msg("Bot not initialized.")
+		return tgbotapi.Message{}, errors.New("bot not initialized")
+	}
+
+	newcaption := "<b>" + stream.UserName + "</b> is playing <b>" + stream.GameName + "</b>: " + stream.Title + "\n" + twitchPrefix + stream.UserName + " [" + liveText + "]"
+
+	config := tgbotapi.NewEditMessageCaption(chatID, message.MessageID, newcaption)
+	config.ParseMode = tgbotapi.ModeHTML
+	ret, err := bot.Send(config)
+
+	if err != nil {
+		logger.Log.Error().Err(err).Msg("error updating Telegram message")
+		return tgbotapi.Message{}, err
+	}
+	if ret.Chat.ID != chatID {
+		return tgbotapi.Message{}, errors.New("error updating Telegram message")
+	}
+
+	return ret, nil
+}
+
+// SendUpdateStreamOffline takes a previously sent message and edits it to reflect the changed stream status.
+func SendUpdateStreamOffline(message tgbotapi.Message, chatID int64) (tgbotapi.Message, error) {
 	logger.Log.Debug().Interface("Message", message).Msg("Updating Message")
 
 	newtext := strings.Replace(message.Caption, liveText, offlineText, 1)
 	config := tgbotapi.NewEditMessageCaption(chatID, message.MessageID, newtext)
+	config.ParseMode = tgbotapi.ModeHTML
+	config.CaptionEntities = message.CaptionEntities
+
 	ret, err := bot.Send(config)
 
 	if err != nil {
@@ -138,7 +163,7 @@ func createPhotoMessage(caption string, chatID int64, url string) (tgbotapi.Phot
 	}
 	config := tgbotapi.NewPhoto(chatID, photoFileBytes)
 	config.Caption = caption
-	config.ParseMode = tgbotapi.ModeMarkdown
+	config.ParseMode = tgbotapi.ModeHTML
 	return config, nil
 
 }

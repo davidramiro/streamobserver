@@ -21,6 +21,8 @@ type telegramChat struct {
 
 type twitchStream struct {
 	username            string
+	title               string
+	game                string
 	status              bool
 	notified            bool
 	notificationMessage tgbotapi.Message
@@ -143,13 +145,19 @@ func checkAndNotifyTwitch(streamToCheck *twitchStream, chatID int64) {
 					streamToCheck.status = false
 				}
 				streamToCheck.notified = true
+				streamToCheck.game = streamResponse[0].GameName
+				streamToCheck.title = streamResponse[0].Title
 			}
 		} else {
 			logger.Log.Debug().Str("Channel", streamToCheck.username).Msg("Online and status has not changed.")
+			if streamToCheck.game != streamResponse[0].GameName || streamToCheck.title != streamResponse[0].Title {
+				telegram.SendUpdateTwitchStreamInfo(chatID, streamToCheck.notificationMessage, streamResponse[0])
+			}
+
 		}
 	} else {
 		if streamToCheck.status && streamToCheck.notified && streamToCheck.notificationMessage.MessageID != 0 {
-			telegram.UpdateMessageStreamOffline(streamToCheck.notificationMessage, chatID)
+			telegram.SendUpdateStreamOffline(streamToCheck.notificationMessage, chatID)
 		}
 		logger.Log.Debug().Str("Channel", streamToCheck.username).Msg("Channel offline.")
 		streamToCheck.status = false
@@ -189,7 +197,7 @@ func checkAndNotifyRestreamer(streamToCheck *restreamerStream, chatID int64) {
 		}
 	} else {
 		if streamToCheck.status && streamToCheck.notified && streamToCheck.notificationMessage.MessageID != 0 {
-			telegram.UpdateMessageStreamOffline(streamToCheck.notificationMessage, chatID)
+			telegram.SendUpdateStreamOffline(streamToCheck.notificationMessage, chatID)
 		}
 		logger.Log.Debug().Str("Channel", streamToCheck.stream.ID).Msg("Channel offline.")
 		streamToCheck.status = false

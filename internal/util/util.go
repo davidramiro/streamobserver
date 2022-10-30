@@ -13,11 +13,6 @@ const (
 	heightPlaceholder = "{height}"
 )
 
-func ReplaceMarkdownCaption(message *string) {
-	*message = strings.ReplaceAll(*message, "[", "[[")
-	*message = strings.ReplaceAll(*message, "]", "]]")
-}
-
 func GetPhotoFromUrl(url string) ([]byte, error) {
 	logger.Log.Debug().Msg("Getting image from URL")
 	response, e := http.Get(url)

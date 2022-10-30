@@ -160,7 +160,7 @@ func TestUpdateMessageStreamOffline(t *testing.T) {
 		assert.Equal(t, *testchatid, result.Chat.ID, "response should contain equal chatID")
 	}
 
-	result, err = UpdateMessageStreamOffline(result, *testchatid)
+	result, err = SendUpdateStreamOffline(result, *testchatid)
 
 	expectedString := "❌ OFFLINE"
 	if assert.NoError(t, err, "updating message with valid request should not return error") {
@@ -168,4 +168,27 @@ func TestUpdateMessageStreamOffline(t *testing.T) {
 		assert.Contains(t, result.Caption, expectedString, "response should contain updated substring")
 	}
 
+}
+
+func TestSendUpdateTwitchStreamInfo(t *testing.T) {
+	stream := *testTwitchStream
+	result, err := SendTwitchStreamInfo(*testchatid, stream)
+
+	if assert.NoError(t, err, "sending message with valid request should not return error") {
+		assert.Equal(t, *testchatid, result.Chat.ID, "response should contain equal chatID")
+	}
+
+	stream.GameName = "New Game"
+	stream.Title = "New Title"
+
+	result, err = SendUpdateTwitchStreamInfo(*testchatid, result, stream)
+
+	expectedStringGame := "New Game"
+	expectedStringTitle := "New Title"
+
+	if assert.NoError(t, err, "updating message with valid request should not return error") {
+		assert.Equal(t, *testchatid, result.Chat.ID, "updated response should contain equal chatID")
+		assert.Contains(t, result.Caption, expectedStringGame, "response should contain updated title string")
+		assert.Contains(t, result.Caption, expectedStringTitle, "response should contain updated game string")
+	}
 }
