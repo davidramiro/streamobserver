@@ -19,14 +19,14 @@ var testchatid *int64
 var testRestreamerInfo = &restreamer.StreamInfo{
 	Description:  "testdesc",
 	UserName:     "testchannel",
-	ThumbnailURL: "https://via.placeholder.com/300.jpg",
+	ThumbnailURL: "https://via.placeholder.com/960.jpg",
 }
 
 var testTwitchStream = &twitch.Stream{
 	UserName:     "testchannel",
 	GameName:     "testgame",
-	ThumbnailURL: "https://via.placeholder.com/300.jpg",
-	Title:        "testtitle",
+	ThumbnailURL: "https://via.placeholder.com/{height}.jpg",
+	Title:        "[test] (streamobserver) title",
 }
 
 var testRestreamerStream = &restreamer.Stream{
@@ -56,13 +56,6 @@ func init() {
 		return
 	}
 	testchatid = &config.General.TestChatID
-}
-
-func TestFormatTwitchPhotoUrl(t *testing.T) {
-	result := formatTwitchPhotoUrl("test-{width}x{height}.jpg")
-	expected := "test-1920x1080.jpg"
-
-	assert.Equal(t, expected, result, "dimensions should be present")
 }
 
 func TestCreatePhotoMessageNotImage(t *testing.T) {
@@ -104,6 +97,9 @@ func TestSendTwitchStreamInfo(t *testing.T) {
 
 	if assert.NoError(t, err, "correctly formatted send request should not throw error") {
 		assert.Equal(t, *testchatid, result.Chat.ID, "response from server should match chatID")
+		assert.Contains(t, result.Caption, testTwitchStream.Title, "message should contain title")
+		assert.Contains(t, result.Caption, testTwitchStream.UserName, "message should contain title")
+		assert.Contains(t, result.Caption, testTwitchStream.GameName, "message should contain game name")
 	}
 }
 

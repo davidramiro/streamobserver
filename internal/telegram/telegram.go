@@ -2,12 +2,11 @@ package telegram
 
 import (
 	"errors"
-	"io"
-	"net/http"
 	"streamobserver/internal/config"
 	"streamobserver/internal/logger"
 	"streamobserver/internal/restreamer"
 	"streamobserver/internal/twitch"
+	"streamobserver/internal/util"
 	"strings"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -16,12 +15,10 @@ import (
 var bot *tgbotapi.BotAPI
 
 const (
-	twitchPrefix      = "https://twitch.tv/"
-	widthPlaceholder  = "{width}"
-	heightPlaceholder = "{height}"
-	htmlSuffix        = ".html"
-	liveText          = "🔴 LIVE"
-	offlineText       = "❌ OFFLINE"
+	twitchPrefix = "https://twitch.tv/"
+	htmlSuffix   = ".html"
+	liveText     = "🔴 LIVE"
+	offlineText  = "❌ OFFLINE"
 )
 
 // InitBot initializes the Telegram bot to send updates with.
@@ -50,10 +47,11 @@ func SendTwitchStreamInfo(chatID int64, stream twitch.Stream) (tgbotapi.Message,
 		return tgbotapi.Message{}, errors.New("bot not initialized")
 	}
 
-	formattedUrl := formatTwitchPhotoUrl(stream.ThumbnailURL)
+	util.FormatTwitchPhotoUrl(&stream.ThumbnailURL)
 	caption := "*" + stream.UserName + "* is playing *" + stream.GameName + "*: " + stream.Title + "\n" + twitchPrefix + stream.UserName + " [" + liveText + "]"
+	util.ReplaceMarkdownCaption(&caption)
 
-	photoMessage, err := createPhotoMessage(caption, chatID, formattedUrl)
+	photoMessage, err := createPhotoMessage(caption, chatID, stream.ThumbnailURL)
 	if err != nil {
 		return tgbotapi.Message{}, errors.New("could not send message")
 	}
@@ -87,6 +85,7 @@ func SendRestreamerStreamInfo(chatID int64, streamInfo restreamer.StreamInfo, st
 	}
 
 	caption := "*" + streamInfo.UserName + "* is streaming: " + streamInfo.Description + "\n" + streamLink + " [" + liveText + "]"
+	util.ReplaceMarkdownCaption(&caption)
 
 	photoMessage, err := createPhotoMessage(caption, chatID, streamInfo.ThumbnailURL)
 	if err != nil {
@@ -126,15 +125,8 @@ func UpdateMessageStreamOffline(message tgbotapi.Message, chatID int64) (tgbotap
 	return ret, nil
 }
 
-func formatTwitchPhotoUrl(url string) string {
-	resized := strings.Replace(url, heightPlaceholder, "1080", 1)
-	resized = strings.Replace(resized, widthPlaceholder, "1920", 1)
-
-	return resized
-}
-
 func createPhotoMessage(caption string, chatID int64, url string) (tgbotapi.PhotoConfig, error) {
-	photoBytes, err := getPhotoFromUrl(url)
+	photoBytes, err := util.GetPhotoFromUrl(url)
 	if err != nil {
 		logger.Log.Error().Err(err).Msg("Could not send photo on Telegram")
 		return tgbotapi.PhotoConfig{}, errors.New("could not retrieve photo")
@@ -149,26 +141,4 @@ func createPhotoMessage(caption string, chatID int64, url string) (tgbotapi.Phot
 	config.ParseMode = tgbotapi.ModeMarkdown
 	return config, nil
 
-}
-
-func getPhotoFromUrl(url string) ([]byte, error) {
-	logger.Log.Debug().Msg("Getting image from URL")
-	response, e := http.Get(url)
-	if e != nil {
-		logger.Log.Fatal().Err(e)
-		return nil, errors.New("could not fetch image from URL")
-	}
-	if response.StatusCode != 200 {
-		return nil, errors.New("could not fetch image from URL")
-	}
-
-	defer response.Body.Close()
-
-	bytes, err := io.ReadAll(response.Body)
-	if err != nil {
-		logger.Log.Fatal().Err(err)
-		return nil, errors.New("could not read image bytes")
-	}
-
-	return bytes, nil
 }

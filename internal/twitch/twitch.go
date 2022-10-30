@@ -77,7 +77,7 @@ func GetStreams(usernames []string) ([]Stream, error) {
 		logger.Log.Error().Err(err)
 		return nil, err
 	}
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		logger.Log.Error().Int("StatusCode", resp.StatusCode).Interface("Response", resp).Msg("No HTTP OK from Twitch Helix.")
 		return nil, err
 	}

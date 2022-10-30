@@ -26,17 +26,17 @@ const embedSuffix = "/oembed.json"
 const playlistSuffix = ".m3u8"
 
 // CheckStreamLive returns if a Restreamer stream is online
-func CheckStreamLive(stream Stream) bool {
+func CheckStreamLive(stream Stream) (bool, error) {
 	url := stream.BaseURL + internalPath + stream.ID + playlistSuffix
 	logger.Log.Debug().Str("URL", url).Msg("Restreamer: Checking URL for HTTP OK")
 	resp, err := http.Get(url)
 	if err != nil {
 		logger.Log.Fatal().Err(err)
-		return false
+		return false, err
 	}
 
 	defer resp.Body.Close()
-	return resp.StatusCode == 200
+	return resp.StatusCode == http.StatusOK, nil
 }
 
 // GetStreamInfo returns the metadata of a stream, if online

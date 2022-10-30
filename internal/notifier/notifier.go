@@ -135,7 +135,6 @@ func checkAndNotifyTwitch(streamToCheck *twitchStream, chatID int64) {
 			streamToCheck.status = true
 			if !streamToCheck.notified {
 				logger.Log.Debug().Str("Channel", streamToCheck.username).Msg("Status change and notification needed.")
-
 				var err error
 				streamToCheck.notificationMessage, err = telegram.SendTwitchStreamInfo(chatID, streamResponse[0])
 				if err != nil {
@@ -160,13 +159,16 @@ func checkAndNotifyTwitch(streamToCheck *twitchStream, chatID int64) {
 
 func checkAndNotifyRestreamer(streamToCheck *restreamerStream, chatID int64) {
 	logger.Log.Info().Str("Channel", streamToCheck.stream.ID).Msg("Restreamer: Checking status")
-	online := restreamer.CheckStreamLive(streamToCheck.stream)
+	online, err := restreamer.CheckStreamLive(streamToCheck.stream)
+	if err != nil {
+		logger.Log.Error().Err(err).Msg("error getting stream status from restreamer")
+		return
+	}
 	if online {
 		streamInfo, err := restreamer.GetStreamInfo(streamToCheck.stream)
 		if err != nil {
-			streamToCheck.notified = false
-			streamToCheck.status = false
-			logger.Log.Error().Err(err).Msg("Restreamer appears to be online, could not fetch info")
+			logger.Log.Error().Err(err).Msg("error getting stream info from restreamer")
+			return
 		}
 		if !streamToCheck.status {
 			logger.Log.Debug().Str("Channel", streamInfo.UserName).Msg("Online and status has changed.")
