@@ -48,7 +48,7 @@ func SendTwitchStreamInfo(chatID int64, stream twitch.Stream) (tgbotapi.Message,
 	}
 
 	util.FormatTwitchPhotoUrl(&stream.ThumbnailURL)
-	caption := "<b>" + stream.UserName + "</b> is playing <b>" + stream.GameName + "</b>: " + stream.Title + "\n" + twitchPrefix + stream.UserName + " [" + liveText + "]"
+	caption := "<b>" + stream.UserName + "</b> is streaming <b>" + stream.GameName + "</b>: " + stream.Title + "\n" + twitchPrefix + stream.UserName + " [" + liveText + "]"
 
 	photoMessage, err := createPhotoMessage(caption, chatID, stream.ThumbnailURL)
 	if err != nil {
@@ -111,7 +111,7 @@ func SendUpdateTwitchStreamInfo(chatID int64, message tgbotapi.Message, stream t
 		return tgbotapi.Message{}, errors.New("bot not initialized")
 	}
 
-	newcaption := "<b>" + stream.UserName + "</b> is playing <b>" + stream.GameName + "</b>: " + stream.Title + "\n" + twitchPrefix + stream.UserName + " [" + liveText + "]"
+	newcaption := "<b>" + stream.UserName + "</b> is streaming <b>" + stream.GameName + "</b>: " + stream.Title + "\n" + twitchPrefix + stream.UserName + " [" + liveText + "]"
 
 	config := tgbotapi.NewEditMessageCaption(chatID, message.MessageID, newcaption)
 	config.ParseMode = tgbotapi.ModeHTML
@@ -133,6 +133,7 @@ func SendUpdateStreamOffline(message tgbotapi.Message, chatID int64) (tgbotapi.M
 	logger.Log.Debug().Interface("Message", message).Msg("Updating Message")
 
 	newtext := strings.Replace(message.Caption, liveText, offlineText, 1)
+	newtext = strings.Replace(newtext, "is streaming", "was streaming", 1)
 	config := tgbotapi.NewEditMessageCaption(chatID, message.MessageID, newtext)
 	config.ParseMode = tgbotapi.ModeHTML
 	config.CaptionEntities = message.CaptionEntities
