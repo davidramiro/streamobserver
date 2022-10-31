@@ -32,17 +32,22 @@ func main() {
 
 	config, err := config.GetConfig()
 	if err != nil {
-		logger.Log.Panic().Err(err)
-		return
+		logger.Log.Panic().Err(err).Msg("Error reading config.")
 	}
 
 	logger.InitLog(config.General.JsonLogging)
 
 	// start telegram bot
-	telegram.InitBot(*debug)
+	err = telegram.InitBot(*debug)
+	if err != nil {
+		logger.Log.Panic().Err(err).Msg("Error initializing Telegram bot.")
+	}
 
 	// set up observers from streams config
-	notifier.PopulateObservers()
+	err = notifier.PopulateObservers()
+	if err != nil {
+		logger.Log.Panic().Err(err).Msg("Error populating streams to notify.")
+	}
 
 	// set up polling ticker
 	ticker := time.NewTicker(time.Duration(config.General.PollingInterval) * time.Second)

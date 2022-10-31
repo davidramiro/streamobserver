@@ -22,22 +22,20 @@ const (
 )
 
 // InitBot initializes the Telegram bot to send updates with.
-func InitBot(debug bool) {
+func InitBot(debug bool) error {
 	config, err := config.GetConfig()
 	if err != nil {
-		logger.Log.Panic().Err(err)
-		return
+		return err
 	}
 
 	bot, err = tgbotapi.NewBotAPI(config.Telegram.ApiKey)
 	if err != nil {
-		logger.Log.Panic().Err(err)
-		return
+		return err
 	}
 
 	bot.Debug = debug
-
 	logger.Log.Info().Msgf("Authorized on Telegram account %s", bot.Self.UserName)
+	return nil
 }
 
 // SendTwitchStreamInfo generates a message from a Twitch stream struct and sends it to a chat ID.

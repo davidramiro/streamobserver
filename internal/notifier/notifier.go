@@ -54,10 +54,10 @@ type chatConfig struct {
 	} `yaml:"streams"`
 }
 
-var chats = make([]telegramChat, 1)
+var chats = []telegramChat{}
 
 // PopulateObservers parses the streams config file.
-func PopulateObservers() {
+func PopulateObservers() error {
 	config := &notifierConfig{}
 
 	// Open streams.yml
@@ -65,14 +65,14 @@ func PopulateObservers() {
 	logger.Log.Debug().Str("Path", p).Msg("Reading streams config from disk")
 	file, err := os.Open(p)
 	if err != nil {
-		logger.Log.Error().Err(err)
+		return err
 	}
 	defer file.Close()
 
 	// Decode YAML
 	d := yaml.NewDecoder(file)
 	if err := d.Decode(&config); err != nil {
-		logger.Log.Error().Err(err)
+		return err
 	}
 
 	// Chats from Config
@@ -104,6 +104,12 @@ func PopulateObservers() {
 
 		chats = append(chats, *chat)
 	}
+
+	if len(chats) == 0 || (len(chats[0].restreamerStreams) == 0 && len(chats[0].twitchStreams) == 0) {
+		return errors.New("no chats/streams loaded")
+	}
+
+	return nil
 }
 
 // Notify starts the notification process and checks the configured streams for updates.
