@@ -19,6 +19,7 @@ type Config struct {
 	General struct {
 		PollingInterval int   `yaml:"polling-interval"`
 		TestChatID      int64 `yaml:"test-chatid"`
+		JsonLogging     bool  `yaml:"json-logging"`
 	} `yaml:"general"`
 }
 

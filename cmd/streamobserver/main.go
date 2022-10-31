@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"os"
 	"streamobserver/internal/config"
 	"streamobserver/internal/logger"
 	"streamobserver/internal/notifier"
@@ -21,14 +22,21 @@ func main() {
 	} else {
 		zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	}
-	logger.InitLog()
 
 	confExists, err := config.CheckPresent()
 	if err != nil || !confExists {
-		logger.Log.Error().Msg("config.yml and/or streams.yml not found. Press [ENTER] to exit.")
+		fmt.Fprint(os.Stdout, "ERROR: config.yml and/or streams.yml not found. Press [ENTER] to exit.")
 		fmt.Scanln()
 		return
 	}
+
+	config, err := config.GetConfig()
+	if err != nil {
+		logger.Log.Panic().Err(err)
+		return
+	}
+
+	logger.InitLog(config.General.JsonLogging)
 
 	// start telegram bot
 	telegram.InitBot(*debug)
@@ -37,11 +45,6 @@ func main() {
 	notifier.PopulateObservers()
 
 	// set up polling ticker
-	config, err := config.GetConfig()
-	if err != nil {
-		logger.Log.Panic().Err(err)
-		return
-	}
 	ticker := time.NewTicker(time.Duration(config.General.PollingInterval) * time.Second)
 	for range ticker.C {
 		notifier.Notify()

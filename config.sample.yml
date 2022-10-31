@@ -4,5 +4,9 @@ twitch:
   client-id: "Twitch-Client-ID"
   client-secret: "Twitch-Client-Secret"
 general:
+  # polling interval to check streams, keep in mind twitch api rate limits
   polling-interval: 180
+  # chat/group/channel to use for go tests
   test-chatid: -1004242424242
+  # enable json formatted logging
+  json-logging: false
