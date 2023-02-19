@@ -2,7 +2,6 @@ package util
 
 import (
 	"errors"
-	"image"
 	"io"
 	"net/http"
 	"streamobserver/internal/logger"
@@ -25,20 +24,19 @@ func GetPhotoFromUrl(url string) ([]byte, error) {
 		return nil, errors.New("could not fetch image from URL")
 	}
 
-	defer response.Body.Close()
-
-	_, _, err := image.Decode(response.Body)
-	if err != nil {
-		return nil, errors.New("invalid image")
+	if !strings.Contains(response.Header.Get("content-type"), "image") {
+		return nil, errors.New("invalid image response")
 	}
 
-	bytes, err := io.ReadAll(response.Body)
+	defer response.Body.Close()
+
+	imageBytes, err := io.ReadAll(response.Body)
 	if err != nil {
 		logger.Log.Error().Err(err)
 		return nil, errors.New("could not read image bytes")
 	}
 
-	return bytes, nil
+	return imageBytes, nil
 }
 
 func FormatTwitchPhotoUrl(url *string) {
