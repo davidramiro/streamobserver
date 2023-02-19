@@ -31,7 +31,7 @@ func CheckStreamLive(stream Stream) (bool, error) {
 	logger.Log.Debug().Str("URL", url).Msg("Restreamer: Checking URL for HTTP OK")
 	resp, err := http.Get(url)
 	if err != nil {
-		logger.Log.Fatal().Err(err)
+		logger.Log.Error().Err(err).Msg("Error making HTTP request to restreamer")
 		return false, err
 	}
 
@@ -46,7 +46,7 @@ func GetStreamInfo(stream Stream) (StreamInfo, error) {
 	logger.Log.Debug().Str("URL", url).Msg("Restreamer: Getting stream config from URL")
 	resp, err := http.Get(url)
 	if err != nil {
-		logger.Log.Fatal().Err(err)
+		logger.Log.Error().Err(err).Msg("Error making HTTP stream info request to restreamer")
 		return StreamInfo{}, err
 	}
 
@@ -54,7 +54,7 @@ func GetStreamInfo(stream Stream) (StreamInfo, error) {
 	var streamInfo StreamInfo
 	err = json.NewDecoder(resp.Body).Decode(&streamInfo)
 	if err != nil {
-		logger.Log.Fatal().Err(err)
+		logger.Log.Error().Err(err).Msg("Error decoding restreamer stream info")
 		return StreamInfo{}, err
 	}
 	logger.Log.Debug().Interface("Info", streamInfo).Msg("Received Stream Info")
