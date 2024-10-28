@@ -43,7 +43,10 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-	InitBot(true)
+	err = InitBot(true)
+	if err != nil {
+		panic(err)
+	}
 
 	config, err := config.GetConfig()
 	if err != nil {
@@ -56,39 +59,6 @@ func init() {
 		return
 	}
 	testchatid = &config.General.TestChatID
-}
-
-func TestCreatePhotoMessageNotImage(t *testing.T) {
-	// Testing broken URL
-	_, err := createPhotoMessage("test", 42, "https://via.placeholder.com/notanimage")
-	expectedError := "could not retrieve photo"
-
-	if assert.Error(t, err, "should report error on broken image URL") {
-		assert.Equal(t, expectedError, err.Error(), "error message should reflect image retrieval issue")
-	}
-}
-
-func TestCreatePhotoMessageBrokenUrl(t *testing.T) {
-	// Testing 404 URL
-	_, err := createPhotoMessage("test", 42, "http://notfound.tld/image.jpg")
-	expectedError := "could not retrieve photo"
-
-	if assert.Error(t, err, "should report error on non-image URL") {
-		assert.Equal(t, expectedError, err.Error(), "error message should reflect image retrieval issue")
-	}
-}
-
-func TestCreatePhotoMessageValid(t *testing.T) {
-	// Testing created Photo Config
-	testcaption := "testcaption"
-	testid := int64(42)
-	result, err := createPhotoMessage(testcaption, testid, "https://via.placeholder.com/300.jpg")
-
-	if assert.NoError(t, err) {
-		assert.Equal(t, testcaption, result.Caption, "config should return expected caption")
-		assert.Equal(t, testid, result.ChatID, "config should return expected chatID")
-		assert.True(t, result.File.NeedsUpload(), "not yet send message should indicate file upload bool")
-	}
 }
 
 func TestSendTwitchStreamInfo(t *testing.T) {

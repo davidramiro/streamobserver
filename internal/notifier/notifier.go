@@ -2,6 +2,7 @@ package notifier
 
 import (
 	"errors"
+	"github.com/go-telegram/bot/models"
 	"os"
 	"path/filepath"
 	"streamobserver/internal/logger"
@@ -9,7 +10,6 @@ import (
 	"streamobserver/internal/telegram"
 	"streamobserver/internal/twitch"
 
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"gopkg.in/yaml.v3"
 )
 
@@ -25,14 +25,14 @@ type twitchStream struct {
 	game                string
 	status              bool
 	notified            bool
-	notificationMessage tgbotapi.Message
+	notificationMessage models.Message
 }
 
 type restreamerStream struct {
 	stream              restreamer.Stream
 	status              bool
 	notified            bool
-	notificationMessage tgbotapi.Message
+	notificationMessage models.Message
 }
 
 type notifierConfig struct {
@@ -162,7 +162,7 @@ func checkAndNotifyTwitch(streamToCheck *twitchStream, chatID int64) {
 
 		}
 	} else {
-		if streamToCheck.status && streamToCheck.notified && streamToCheck.notificationMessage.MessageID != 0 {
+		if streamToCheck.status && streamToCheck.notified && streamToCheck.notificationMessage.ID != 0 {
 			telegram.SendUpdateStreamOffline(streamToCheck.notificationMessage, chatID)
 		}
 		logger.Log.Debug().Str("Channel", streamToCheck.username).Msg("Channel offline.")
@@ -202,7 +202,7 @@ func checkAndNotifyRestreamer(streamToCheck *restreamerStream, chatID int64) {
 			logger.Log.Debug().Str("Channel", streamInfo.UserName).Msg("Online and status has not changed.")
 		}
 	} else {
-		if streamToCheck.status && streamToCheck.notified && streamToCheck.notificationMessage.MessageID != 0 {
+		if streamToCheck.status && streamToCheck.notified && streamToCheck.notificationMessage.ID != 0 {
 			telegram.SendUpdateStreamOffline(streamToCheck.notificationMessage, chatID)
 		}
 		logger.Log.Debug().Str("Channel", streamToCheck.stream.ID).Msg("Channel offline.")
