@@ -16,17 +16,17 @@ import (
 func main() {
 	log.Info().Str("author", "davidramiro").Msg("starting streamobserver")
 
-	if viper.GetBool("general.debug") {
-		zerolog.SetGlobalLevel(zerolog.DebugLevel)
-	} else {
-		zerolog.SetGlobalLevel(zerolog.InfoLevel)
-	}
-
 	log.Info().Msg("initializing telegram bot")
 	viper.AddConfigPath(".")
 	err := viper.ReadInConfig()
 	if err != nil {
 		log.Panic().Err(err).Msg("failed to read config")
+	}
+
+	if viper.GetBool("general.debug") {
+		zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	} else {
+		zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	}
 
 	token := viper.GetString("telegram.apikey")

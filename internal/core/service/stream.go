@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/viper"
 	"streamobserver/internal/core/domain"
 	"streamobserver/internal/core/port"
+	"sync"
 )
 
 type StreamService struct {
@@ -33,7 +34,6 @@ func (ss *StreamService) GetStreamInfos(ctx context.Context, streams []*domain.S
 	ctx, cancel := context.WithTimeout(ctx, viper.GetDuration("general.request_timeout"))
 	defer cancel()
 
-	infos := make([]domain.StreamInfo, 0)
 	twitchStreams := make([]*domain.StreamQuery, 0)
 	restreamerStreams := make([]*domain.StreamQuery, 0)
 
@@ -50,22 +50,36 @@ func (ss *StreamService) GetStreamInfos(ctx context.Context, streams []*domain.S
 		Int("restreamerStreamCount", len(restreamerStreams)).
 		Msg("getting stream infos")
 
+	wg := new(sync.WaitGroup)
+
+	infoCh := make(chan []domain.StreamInfo, 2)
+	errCh := make(chan error, 2)
+
 	if len(twitchStreams) > 0 {
-		twitchInfos, err := ss.twitchGetter.GetStreamInfos(ctx, twitchStreams)
-		if err != nil {
-			log.Err(err).Msg("unable to fetch twitch streams")
-			return nil, err
-		}
-		infos = append(infos, twitchInfos...)
+		wg.Add(1)
+		go ss.twitchGetter.GetStreamInfos(ctx, twitchStreams, wg, infoCh, errCh)
 	}
 
 	if len(restreamerStreams) > 0 {
-		restreamerInfos, err := ss.restreamerGetter.GetStreamInfos(ctx, restreamerStreams)
+		wg.Add(1)
+		go ss.restreamerGetter.GetStreamInfos(ctx, restreamerStreams, wg, infoCh, errCh)
+	}
+
+	wg.Wait()
+	close(errCh)
+	close(infoCh)
+
+	for err := range errCh {
 		if err != nil {
-			log.Err(err).Msg("unable to fetch restream streams")
+			log.Error().Err(err).Msg("error getting stream info")
 			return nil, err
 		}
-		infos = append(infos, restreamerInfos...)
+	}
+
+	infos := make([]domain.StreamInfo, 0)
+
+	for info := range infoCh {
+		infos = append(infos, info...)
 	}
 
 	return infos, nil

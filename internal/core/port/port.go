@@ -3,11 +3,16 @@ package port
 import (
 	"context"
 	"streamobserver/internal/core/domain"
+	"sync"
 )
 
 type StreamInfoProvider interface {
 	// GetStreamInfos takes an array of streams for a single stream service and returns metadata for those that are online.
-	GetStreamInfos(ctx context.Context, streams []*domain.StreamQuery) ([]domain.StreamInfo, error)
+	GetStreamInfos(ctx context.Context,
+		streams []*domain.StreamQuery,
+		wg *sync.WaitGroup,
+		stream chan<- []domain.StreamInfo,
+		err chan<- error)
 	// Kind returns the streaming service fetched by this provider
 	Kind() domain.StreamKind
 }

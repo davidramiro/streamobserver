@@ -1,16 +1,19 @@
 package twitch
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
+	"io"
 	"net/http"
 	"net/url"
 	"streamobserver/internal/core/domain"
 	"streamobserver/internal/core/port"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -35,7 +38,7 @@ type twitchResponse struct {
 		GameName     string `json:"game_name"`
 		Title        string `json:"title"`
 		ThumbnailURL string `json:"thumbnail_url"`
-	} `json:"data"`
+	} `json:"data,omitempty"`
 }
 
 type authToken struct {
@@ -49,25 +52,33 @@ func formatTwitchPhotoUrl(url string) string {
 	return strings.Replace(url, widthPlaceholder, "1920", 1)
 }
 
-func (s *StreamInfoProvider) GetStreamInfos(ctx context.Context, streams []*domain.StreamQuery) ([]domain.StreamInfo, error) {
+func (s *StreamInfoProvider) GetStreamInfos(ctx context.Context,
+	streams []*domain.StreamQuery,
+	wg *sync.WaitGroup,
+	infos chan<- []domain.StreamInfo,
+	errCh chan<- error) {
+	defer wg.Done()
+
 	log.Info().Int("count", len(streams)).Msg("getting info for twitch streams")
 
 	err := s.authenticate(ctx)
 	if err != nil {
 		log.Err(err).Msg("error authenticating with twitch")
-		return nil, err
+		errCh <- err
+		return
 	}
 
 	bearer := "Bearer " + s.token.AccessToken
 
 	base, err := url.Parse(twitchStreamsURL)
 	if err != nil {
-		return nil, err
+		errCh <- err
+		return
 	}
 
 	// Query params
 	params := url.Values{}
-	params.Add("type", "live")
+	params.Add("type", "all")
 	params.Add("first", "100")
 	for _, s := range streams {
 		params.Add("user_login", s.UserID)
@@ -77,7 +88,8 @@ func (s *StreamInfoProvider) GetStreamInfos(ctx context.Context, streams []*doma
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base.String(), nil)
 	if err != nil {
 		log.Err(err).Msg("error building request for twitch")
-		return nil, err
+		errCh <- err
+		return
 	}
 
 	req.Header.Set("Authorization", bearer)
@@ -89,33 +101,50 @@ func (s *StreamInfoProvider) GetStreamInfos(ctx context.Context, streams []*doma
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Error().Err(err).Msg("error making request to twitch")
-		return nil, err
+		errCh <- err
+		return
 	}
 	if resp.StatusCode != http.StatusOK {
 		log.Error().Int("StatusCode", resp.StatusCode).Interface("Response", resp).
 			Msg("No HTTP OK from Twitch Helix.")
-		return nil, err
+		errCh <- err
+		return
 	}
 
 	defer resp.Body.Close()
 
-	var response twitchResponse
-
-	err = json.NewDecoder(resp.Body).Decode(&response)
+	responseBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Err(err).Msg("error decoding response from twitch")
-		return nil, err
+		log.Err(err).Msg("error getting bytes from twitch json response")
+		errCh <- err
+		return
 	}
 
-	infos := make([]domain.StreamInfo, len(streams))
+	buffer := new(bytes.Buffer)
+	err = json.Compact(buffer, responseBytes)
+	if err != nil {
+		log.Err(err).Msg("error compacting twitch json response")
+		errCh <- err
+		return
+	}
+
+	var response twitchResponse
+	err = json.NewDecoder(buffer).Decode(&response)
+	if err != nil {
+		log.Err(err).Msg("error decoding response from twitch")
+		errCh <- err
+		return
+	}
+
+	streamInfos := make([]domain.StreamInfo, len(streams))
 
 	for i, s := range streams {
 		online := false
 		log.Debug().Str("id", s.UserID).Msg("checking if stream in response")
 		for _, data := range response.Data {
-			if data.Username == s.UserID {
+			if strings.EqualFold(data.Username, s.UserID) {
 				log.Debug().Msg("found, setting info")
-				infos[i] = domain.StreamInfo{
+				streamInfos[i] = domain.StreamInfo{
 					Query:        s,
 					Username:     data.Username,
 					Title:        fmt.Sprintf("%s: %s", data.GameName, data.Title),
@@ -125,18 +154,18 @@ func (s *StreamInfoProvider) GetStreamInfos(ctx context.Context, streams []*doma
 				}
 				online = true
 			}
-			if !online {
-				log.Debug().Msg("not found, setting offline info")
-				infos[i] = domain.StreamInfo{
-					Query:    s,
-					Username: s.UserID,
-					IsOnline: false,
-				}
+		}
+		if !online {
+			log.Debug().Msg("not found, setting offline info")
+			streamInfos[i] = domain.StreamInfo{
+				Query:    s,
+				Username: s.UserID,
+				IsOnline: false,
 			}
 		}
 	}
 
-	return infos, nil
+	infos <- streamInfos
 }
 
 func (s *StreamInfoProvider) authenticate(ctx context.Context) error {

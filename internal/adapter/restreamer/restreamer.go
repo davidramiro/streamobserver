@@ -73,39 +73,45 @@ func fetchInfo(ctx context.Context, stream domain.StreamQuery, client *http.Clie
 	return restreamerInfo, nil
 }
 
-func (s *StreamInfoProvider) GetStreamInfos(ctx context.Context, streams []*domain.StreamQuery) ([]domain.StreamInfo, error) {
+func (s *StreamInfoProvider) GetStreamInfos(ctx context.Context,
+	streams []*domain.StreamQuery,
+	wg *sync.WaitGroup,
+	infos chan<- []domain.StreamInfo,
+	errorCh chan<- error) {
+	defer wg.Done()
+
 	log.Info().Int("count", len(streams)).Msg("getting info for restreamer streams")
 
-	wg := sync.WaitGroup{}
+	wg2 := new(sync.WaitGroup)
+	wg2.Add(len(streams))
 
-	wg.Add(len(streams))
-
-	infos := make([]domain.StreamInfo, 0)
+	streamInfos := make([]domain.StreamInfo, 0)
 	infoCh := make(chan domain.StreamInfo, len(streams))
 	errCh := make(chan error, len(streams))
 
 	client := &http.Client{}
 
 	for _, stream := range streams {
-		go fetch(ctx, stream, client, infoCh, errCh, &wg)
+		go fetch(ctx, stream, client, infoCh, errCh, wg2)
 	}
 
-	wg.Wait()
+	wg2.Wait()
 	close(infoCh)
 	close(errCh)
 
 	for err := range errCh {
 		if err != nil {
-			log.Error().Err(err).Msg("error getting stream info")
-			return nil, err
+			log.Error().Err(err).Msg("error getting restreamer stream info")
+			errorCh <- err
+			return
 		}
 	}
 
 	for info := range infoCh {
-		infos = append(infos, info)
+		streamInfos = append(streamInfos, info)
 	}
 
-	return infos, nil
+	infos <- streamInfos
 }
 
 func fetch(ctx context.Context,
