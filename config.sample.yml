@@ -1,12 +1,26 @@
-telegram:
-  apikey: "Telegram-Bot-API-Key"
-twitch:
-  client-id: "Twitch-Client-ID"
-  client-secret: "Twitch-Client-Secret"
 general:
-  # polling interval to check streams, keep in mind twitch api rate limits
-  polling-interval: 180
-  # chat/group/channel to use for go tests
-  test-chatid: -1004242424242
-  # enable json formatted logging
-  json-logging: false
+  polling_interval: "180s"
+  request_timeout: "20s"
+  debug: false
+
+telegram:
+  apikey: "telegram-bot-key"
+
+twitch:
+  client_id: "client-id"
+  client_secret: "client-secret"
+
+chats:
+  # List of chat IDs to notify (private / group)
+  - chatid: 42424242
+    streams:
+      twitch:
+        # List of Twitch usernames to observe
+        - username: "dashducks"
+      restreamer:
+        # List of restreamer streams to observe
+        - baseurl: "https://server.restreamer.tld"
+          # Channel ID
+          id: "124278c-5a03-45ca-8302-c322f1127232"
+          # Optional, for a custom page embedding the restreamer stream
+          customurl: "https://stream.wrapper.tld"
