@@ -3,7 +3,7 @@ module streamobserver
 go 1.20
 
 require (
-	github.com/go-telegram/bot v1.10.0
+	github.com/go-telegram/bot v1.10.1
 	github.com/rs/zerolog v1.33.0
 	github.com/spf13/viper v1.19.0
 )
