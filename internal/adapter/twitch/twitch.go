@@ -48,8 +48,8 @@ type authToken struct {
 }
 
 func formatTwitchPhotoUrl(url string) string {
-	url = strings.Replace(url, heightPlaceholder, "720", 1)
-	return strings.Replace(url, widthPlaceholder, "1280", 1)
+	url = strings.Replace(url, heightPlaceholder, "1080", 1)
+	return strings.Replace(url, widthPlaceholder, "1920", 1)
 }
 
 func (s *StreamInfoProvider) GetStreamInfos(ctx context.Context,

@@ -8,13 +8,12 @@ import (
 	"github.com/go-telegram/bot/models"
 	"github.com/rs/zerolog/log"
 	"streamobserver/internal/core/domain"
+	"time"
 )
 
 const (
-	twitchPrefix = "https://twitch.tv/"
-	htmlSuffix   = ".html"
-	liveText     = "🔴 LIVE"
-	offlineText  = "❌ OFFLINE"
+	liveText    = "🔴 LIVE"
+	offlineText = "❌ OFFLINE"
 )
 
 type Sender struct {
@@ -31,8 +30,13 @@ func (s *Sender) SendStreamInfo(ctx context.Context, chatID int64, stream domain
 	caption := fmt.Sprintf("%s is streaming %s\n%s\n[%s]", stream.Username, stream.Title, stream.URL, liveText)
 
 	ret, err := s.b.SendPhoto(ctx, &bot.SendPhotoParams{
-		ChatID:  chatID,
-		Photo:   &models.InputFileString{Data: stream.ThumbnailURL},
+		ChatID: chatID,
+		Photo: &models.InputFileString{
+			Data: fmt.Sprintf(
+				"%s?time=%d",
+				stream.ThumbnailURL,
+				time.Now().Unix()),
+		},
 		Caption: caption,
 	})
 	if err != nil {
