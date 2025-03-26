@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/go-telegram/bot v1.14.1
-	github.com/rs/zerolog v1.33.0
+	github.com/rs/zerolog v1.34.0
 	github.com/spf13/viper v1.19.0
 )
 
