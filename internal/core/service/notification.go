@@ -2,11 +2,12 @@ package service
 
 import (
 	"context"
-	"github.com/rs/zerolog/log"
-	"github.com/spf13/viper"
 	"streamobserver/internal/core/domain"
 	"streamobserver/internal/core/port"
 	"time"
+
+	"github.com/rs/zerolog/log"
+	"github.com/spf13/viper"
 )
 
 type NotificationService struct {
@@ -99,7 +100,10 @@ func (n *NotificationService) StartPolling(ctx context.Context) {
 					s.PublishedOfflineStatus = true
 				}
 
-				log.Info().Str("stream", info.Username).Bool("online", info.IsOnline).Msg("stream status update, notifying")
+				log.Info().
+					Str("stream", info.Username).
+					Bool("online", info.IsOnline).
+					Msg("stream status update, notifying")
 				go n.notify(ctx, &s, info)
 
 				s.LatestInfo = info
@@ -129,7 +133,7 @@ func (n *NotificationService) notify(ctx context.Context, observed *domain.Obser
 	}
 
 	if observed.PublishedOfflineStatus {
-		for i, _ := range observed.Observers {
+		for i := range observed.Observers {
 			observed.Observers[i].MessageID = 0
 		}
 	}

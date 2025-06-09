@@ -4,11 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"streamobserver/internal/core/domain"
+	"time"
+
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
 	"github.com/rs/zerolog/log"
-	"streamobserver/internal/core/domain"
-	"time"
 )
 
 const (
@@ -26,31 +27,41 @@ func NewTelegramSender(b *bot.Bot) *Sender {
 
 // SendStreamInfo generates a message from a domain.StreamInfo and sends it to a chat ID.
 func (s *Sender) SendStreamInfo(ctx context.Context, chatID int64, stream domain.StreamInfo) (int, error) {
-
 	caption := fmt.Sprintf("%s is streaming %s\n%s\n[%s]", stream.Username, stream.Title, stream.URL, liveText)
 
-	ret, err := s.b.SendPhoto(ctx, &bot.SendPhotoParams{
-		ChatID: chatID,
-		Photo: &models.InputFileString{
-			Data: fmt.Sprintf(
-				"%s?time=%d",
-				stream.ThumbnailURL,
-				time.Now().Unix()),
-		},
-		Caption: caption,
-	})
-	if err != nil {
-		log.Error().Err(err).Msg("error sending telegram message")
-		return -1, err
+	var message *models.Message
+	var err error
+	if stream.ThumbnailURL == "" {
+		message, err = s.b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: chatID,
+			Text:   caption,
+		})
+		if err != nil {
+			return -1, fmt.Errorf("error sending telegram message: %w", err)
+		}
+	} else {
+		message, err = s.b.SendPhoto(ctx, &bot.SendPhotoParams{
+			ChatID: chatID,
+			Photo: &models.InputFileString{
+				Data: fmt.Sprintf(
+					"%s?time=%d",
+					stream.ThumbnailURL,
+					time.Now().Unix()),
+			},
+			Caption: caption,
+		})
+		if err != nil {
+			return -1, fmt.Errorf("error sending telegram photo: %w", err)
+		}
 	}
 
-	log.Debug().Interface("Message", ret).Msg("Sent message.")
+	log.Debug().Interface("Message", message).Msg("Sent message.")
 
-	if ret.Chat.ID != chatID {
+	if message.Chat.ID != chatID {
 		return -1, errors.New("returned invalid chat id")
 	}
 
-	return ret.ID, nil
+	return message.ID, nil
 }
 
 // UpdateStreamInfo generates a message from a domain.StreamInfo and sends it to a chat ID.
@@ -67,19 +78,31 @@ func (s *Sender) UpdateStreamInfo(ctx context.Context, chatID int64, messageID i
 	}
 	caption := fmt.Sprintf("%s %s streaming %s\n%s\n[%s]", stream.Username, verb, stream.Title, stream.URL, status)
 
-	ret, err := s.b.EditMessageCaption(ctx, &bot.EditMessageCaptionParams{
-		ChatID:    chatID,
-		MessageID: messageID,
-		Caption:   caption,
-	})
-	if err != nil {
-		log.Error().Err(err).Msg("error sending telegram message")
-		return err
+	var message *models.Message
+	var err error
+	if stream.ThumbnailURL == "" {
+		message, err = s.b.EditMessageText(ctx, &bot.EditMessageTextParams{
+			ChatID:    chatID,
+			MessageID: messageID,
+			Text:      caption,
+		})
+		if err != nil {
+			return fmt.Errorf("error editing telegram message: %w", err)
+		}
+	} else {
+		message, err = s.b.EditMessageCaption(ctx, &bot.EditMessageCaptionParams{
+			ChatID:    chatID,
+			MessageID: messageID,
+			Caption:   caption,
+		})
+		if err != nil {
+			return fmt.Errorf("error editing telegram photo: %w", err)
+		}
 	}
 
-	log.Debug().Interface("Message", ret).Msg("Sent message.")
+	log.Debug().Interface("Message", *message).Msg("Sent message.")
 
-	if ret.Chat.ID != chatID {
+	if message.Chat.ID != chatID {
 		return errors.New("returned invalid chat id")
 	}
 

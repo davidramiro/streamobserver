@@ -3,11 +3,13 @@ package restreamer
 import (
 	"context"
 	"encoding/json"
-	"github.com/rs/zerolog/log"
+	"fmt"
 	"net/http"
 	"streamobserver/internal/core/domain"
 	"streamobserver/internal/core/port"
 	"sync"
+
+	"github.com/rs/zerolog/log"
 )
 
 const (
@@ -30,17 +32,17 @@ type restreamerResponse struct {
 
 func checkOnline(ctx context.Context, stream domain.StreamQuery, client *http.Client) (bool, error) {
 	url := stream.BaseURL + internalPath + stream.UserID + playlistSuffix
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		log.Error().Err(err).Msg("error building http request for restreamer")
-		return false, err
+		return false, fmt.Errorf("error building http request for restreamer: %w", err)
 	}
 
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Error().Err(err).Msg("get stream online request failed")
-		return false, err
+		return false, fmt.Errorf("get stream online request failed: %w", err)
 	}
+
+	defer resp.Body.Close()
 
 	return resp.StatusCode == http.StatusOK, nil
 }
@@ -49,16 +51,14 @@ func fetchInfo(ctx context.Context, stream domain.StreamQuery, client *http.Clie
 	url := stream.BaseURL + channelPath + stream.UserID + embedSuffix
 	log.Debug().Str("URL", url).Msg("getting restreamer stream config from URL")
 
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		log.Error().Err(err).Msg("error building http request for restreamer")
-		return restreamerResponse{}, err
+		return restreamerResponse{}, fmt.Errorf("error building http request for restreamer: %w", err)
 	}
 
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Error().Err(err).Msg("get stream info request failed")
-		return restreamerResponse{}, err
+		return restreamerResponse{}, fmt.Errorf("get stream info request failed: %w", err)
 	}
 
 	defer resp.Body.Close()
@@ -66,8 +66,7 @@ func fetchInfo(ctx context.Context, stream domain.StreamQuery, client *http.Clie
 	var restreamerInfo restreamerResponse
 	err = json.NewDecoder(resp.Body).Decode(&restreamerInfo)
 	if err != nil {
-		log.Error().Err(err).Msg("error decoding restreamer stream info")
-		return restreamerResponse{}, err
+		return restreamerResponse{}, fmt.Errorf("error decoding restreamer stream info: %w", err)
 	}
 
 	return restreamerInfo, nil
@@ -101,8 +100,7 @@ func (s *StreamInfoProvider) GetStreamInfos(ctx context.Context,
 
 	for err := range errCh {
 		if err != nil {
-			log.Error().Err(err).Msg("error getting restreamer stream info")
-			errorCh <- err
+			errorCh <- fmt.Errorf("error getting restreamer stream info: %w", err)
 			return
 		}
 	}
@@ -124,8 +122,7 @@ func fetch(ctx context.Context,
 
 	online, err := checkOnline(ctx, *query, client)
 	if err != nil {
-		log.Error().Err(err).Msgf("error checking if stream %s is online", query.UserID)
-		errs <- err
+		errs <- fmt.Errorf("error checking if stream %s is online: %w", query.UserID, err)
 		return
 	}
 
@@ -139,8 +136,7 @@ func fetch(ctx context.Context,
 
 	info, err := fetchInfo(ctx, *query, client)
 	if err != nil {
-		log.Error().Err(err).Msgf("error fetching stream %s info", query.UserID)
-		errs <- err
+		errs <- fmt.Errorf("error fetching stream %s info: %w", query.UserID, err)
 		return
 	}
 

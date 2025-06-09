@@ -2,15 +2,17 @@ package main
 
 import (
 	"context"
-	"github.com/go-telegram/bot"
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
-	"github.com/spf13/viper"
+	"streamobserver/internal/adapter/broadcastbox"
 	"streamobserver/internal/adapter/restreamer"
 	"streamobserver/internal/adapter/telegram"
 	"streamobserver/internal/adapter/twitch"
 	"streamobserver/internal/core/domain"
 	"streamobserver/internal/core/service"
+
+	"github.com/go-telegram/bot"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
+	"github.com/spf13/viper"
 )
 
 func main() {
@@ -39,8 +41,9 @@ func main() {
 	sender := telegram.NewTelegramSender(b)
 	ta := &twitch.StreamInfoProvider{}
 	ra := &restreamer.StreamInfoProvider{}
+	bb := &broadcastbox.StreamInfoProvider{}
 
-	streamService := service.NewStreamService(ta, ra)
+	streamService := service.NewStreamService(ta, ra, bb)
 
 	notificationService := service.NewNotificationService(sender, streamService)
 
@@ -63,6 +66,13 @@ func main() {
 			notificationService.Register(chat.ChatID, &domain.StreamQuery{
 				UserID: twitchConfig.Username,
 				Kind:   domain.StreamKindTwitch,
+			})
+		}
+		for _, broadcastboxConfig := range chat.Streams.BroadcastBox {
+			notificationService.Register(chat.ChatID, &domain.StreamQuery{
+				UserID:  broadcastboxConfig.ID,
+				BaseURL: broadcastboxConfig.BaseURL,
+				Kind:    domain.StreamKindBroadcastBox,
 			})
 		}
 	}
