@@ -24,3 +24,8 @@ chats:
           id: "124278c-5a03-45ca-8302-c322f1127232"
           # Optional, for a custom page embedding the restreamer stream
           customurl: "https://stream.wrapper.tld"
+      broadcastbox:
+        # List of restreamer streams to observe
+        - baseurl: "https://server.broadcastbox.tld"
+          # Stream key
+          id: "key"

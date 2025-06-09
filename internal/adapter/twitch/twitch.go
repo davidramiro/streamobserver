@@ -5,8 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/rs/zerolog/log"
-	"github.com/spf13/viper"
 	"io"
 	"net/http"
 	"net/url"
@@ -15,12 +13,15 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/rs/zerolog/log"
+	"github.com/spf13/viper"
 )
 
 const (
 	widthPlaceholder  = "{width}"
 	heightPlaceholder = "{height}"
-	twitchTokenURL    = "https://id.twitch.tv/oauth2/token"
+	twitchTokenURL    = "https://id.twitch.tv/oauth2/token" // #nosec:G101: no credentials
 	twitchStreamsURL  = "https://api.twitch.tv/helix/streams"
 	twitchBaseURL     = "https://twitch.tv"
 	twitchMimeType    = "application/json"
@@ -47,7 +48,7 @@ type authToken struct {
 	tokenCreation time.Time
 }
 
-func formatTwitchPhotoUrl(url string) string {
+func formatTwitchPhotoURL(url string) string {
 	url = strings.Replace(url, heightPlaceholder, "1080", 1)
 	return strings.Replace(url, widthPlaceholder, "1920", 1)
 }
@@ -63,8 +64,7 @@ func (s *StreamInfoProvider) GetStreamInfos(ctx context.Context,
 
 	err := s.authenticate(ctx)
 	if err != nil {
-		log.Err(err).Msg("error authenticating with twitch")
-		errCh <- err
+		errCh <- fmt.Errorf("error authenticating with twitch: %w", err)
 		return
 	}
 
@@ -87,27 +87,23 @@ func (s *StreamInfoProvider) GetStreamInfos(ctx context.Context,
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base.String(), nil)
 	if err != nil {
-		log.Err(err).Msg("error building request for twitch")
-		errCh <- err
+		errCh <- fmt.Errorf("error building request for twitch: %w", err)
 		return
 	}
 
 	req.Header.Set("Authorization", bearer)
 	req.Header.Add("Accept", twitchMimeType)
-	req.Header.Add("client-id", viper.GetString("twitch.client_id"))
+	req.Header.Add("Client-Id", viper.GetString("twitch.client_id"))
 
 	client := &http.Client{}
 
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Error().Err(err).Msg("error making request to twitch")
-		errCh <- err
+		errCh <- fmt.Errorf("error making request to twitch: %w", err)
 		return
 	}
 	if resp.StatusCode != http.StatusOK {
-		log.Error().Int("StatusCode", resp.StatusCode).Interface("Response", resp).
-			Msg("No HTTP OK from Twitch Helix.")
-		errCh <- err
+		errCh <- fmt.Errorf("unexpected response from twitch: %d", resp.StatusCode)
 		return
 	}
 
@@ -115,24 +111,21 @@ func (s *StreamInfoProvider) GetStreamInfos(ctx context.Context,
 
 	responseBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Err(err).Msg("error getting bytes from twitch json response")
-		errCh <- err
+		errCh <- fmt.Errorf("error getting bytes from twitch json response: %w", err)
 		return
 	}
 
 	buffer := new(bytes.Buffer)
 	err = json.Compact(buffer, responseBytes)
 	if err != nil {
-		log.Err(err).Msg("error compacting twitch json response")
-		errCh <- err
+		errCh <- fmt.Errorf("error compacting twitch json response: %w", err)
 		return
 	}
 
 	var response twitchResponse
 	err = json.NewDecoder(buffer).Decode(&response)
 	if err != nil {
-		log.Err(err).Msg("error decoding response from twitch")
-		errCh <- err
+		errCh <- fmt.Errorf("error decoding response from twitch: %w", err)
 		return
 	}
 
@@ -149,7 +142,7 @@ func (s *StreamInfoProvider) GetStreamInfos(ctx context.Context,
 					Username:     data.Username,
 					Title:        fmt.Sprintf("%s: %s", data.GameName, data.Title),
 					URL:          fmt.Sprintf("%s/%s", twitchBaseURL, data.Username),
-					ThumbnailURL: formatTwitchPhotoUrl(data.ThumbnailURL),
+					ThumbnailURL: formatTwitchPhotoURL(data.ThumbnailURL),
 					IsOnline:     true,
 				}
 				online = true
@@ -193,15 +186,13 @@ func (s *StreamInfoProvider) authenticate(ctx context.Context) error {
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, base.String(), nil)
 	if err != nil {
-		log.Err(err).Msg("error creating twitch auth request")
-		return err
+		return fmt.Errorf("error creating twitch auth request: %w", err)
 	}
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Err(err).Msg("error executing twitch auth request")
-		return err
+		return fmt.Errorf("error executing twitch auth request: %w", err)
 	}
 
 	defer resp.Body.Close()
@@ -209,8 +200,7 @@ func (s *StreamInfoProvider) authenticate(ctx context.Context) error {
 	err = json.NewDecoder(resp.Body).Decode(&s.token)
 	s.token.tokenCreation = time.Now()
 	if err != nil {
-		log.Err(err).Msg("error parsing twitch auth response")
-		return err
+		return fmt.Errorf("error parsing twitch auth response: %w", err)
 	}
 
 	log.Debug().Msg("successfully authenticated on twitch")

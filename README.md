@@ -2,7 +2,7 @@
 
 ## About
 
-Go service to poll Twitch and Restreamer streams and notify Telegram chats and groups.
+Go service to poll Twitch, BroadcastBox and Restreamer streams and notify Telegram chats and groups.
 
 ## Setup
 

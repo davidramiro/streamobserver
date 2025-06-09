@@ -17,8 +17,9 @@ func (s StreamQuery) Equals(o StreamQuery) bool {
 type StreamKind string
 
 const (
-	StreamKindTwitch     StreamKind = "twitch"
-	StreamKindRestreamer StreamKind = "restreamer"
+	StreamKindTwitch       StreamKind = "twitch"
+	StreamKindRestreamer   StreamKind = "restreamer"
+	StreamKindBroadcastBox StreamKind = "broadcastbox"
 )
 
 type StreamInfo struct {
@@ -59,5 +60,9 @@ type ChatConfig struct {
 			ID        string `yaml:"id"`
 			CustomURL string `yaml:"customurl"`
 		} `yaml:"restreamer"`
+		BroadcastBox []struct {
+			BaseURL string `yaml:"baseurl"`
+			ID      string `yaml:"id"`
+		} `yaml:"broadcastbox"`
 	} `yaml:"streams"`
 }
