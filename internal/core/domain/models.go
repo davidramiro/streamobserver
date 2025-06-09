@@ -61,8 +61,9 @@ type ChatConfig struct {
 			CustomURL string `yaml:"customurl"`
 		} `yaml:"restreamer"`
 		BroadcastBox []struct {
-			BaseURL string `yaml:"baseurl"`
-			ID      string `yaml:"id"`
+			BaseURL   string `yaml:"baseurl"`
+			ID        string `yaml:"id"`
+			CustomURL string `yaml:"customurl"`
 		} `yaml:"broadcastbox"`
 	} `yaml:"streams"`
 }

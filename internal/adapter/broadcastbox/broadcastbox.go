@@ -79,9 +79,16 @@ func (s *StreamInfoProvider) GetStreamInfos(ctx context.Context,
 		}
 
 		if on {
+			var url string
+			if stream.CustomURL == "" {
+				url = stream.BaseURL + "/" + stream.UserID
+			} else {
+				url = stream.CustomURL
+			}
+
 			streamInfos = append(streamInfos, domain.StreamInfo{
 				Username: stream.UserID,
-				URL:      stream.BaseURL + "/" + stream.UserID,
+				URL:      url,
 				Query:    stream,
 				IsOnline: on,
 			})
