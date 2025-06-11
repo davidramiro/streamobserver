@@ -70,9 +70,10 @@ func main() {
 		}
 		for _, broadcastboxConfig := range chat.Streams.BroadcastBox {
 			notificationService.Register(chat.ChatID, &domain.StreamQuery{
-				UserID:  broadcastboxConfig.ID,
-				BaseURL: broadcastboxConfig.BaseURL,
-				Kind:    domain.StreamKindBroadcastBox,
+				UserID:    broadcastboxConfig.ID,
+				BaseURL:   broadcastboxConfig.BaseURL,
+				CustomURL: broadcastboxConfig.CustomURL,
+				Kind:      domain.StreamKindBroadcastBox,
 			})
 		}
 	}

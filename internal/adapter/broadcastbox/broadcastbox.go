@@ -22,40 +22,46 @@ type StreamInfoProvider struct{}
 var _ = (*port.StreamInfoProvider)(nil)
 
 type broadcastboxResponse struct {
-	StreamKey string `json:"streamKey"`
+	StreamKey    string `json:"streamKey"`
+	VideoStreams []struct {
+		RID string `json:"rid"`
+	} `json:"videoStreams"`
+	WhepSessions []struct {
+		ID string `json:"id"`
+	} `json:"whepSessions"`
 }
 
-func checkOnline(ctx context.Context, stream domain.StreamQuery, client *http.Client) (bool, error) {
+func checkOnline(ctx context.Context, stream domain.StreamQuery, client *http.Client) (bool, int, error) {
 	url := stream.BaseURL + apiURL
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return false, fmt.Errorf("error building http request for broadcastbox: %w", err)
+		return false, 0, fmt.Errorf("error building http request for broadcastbox: %w", err)
 	}
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return false, fmt.Errorf("get stream online request failed: %w", err)
+		return false, 0, fmt.Errorf("get stream online request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	var respBody []broadcastboxResponse
 	b, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return false, fmt.Errorf("error reading response body: %w", err)
+		return false, 0, fmt.Errorf("error reading response body: %w", err)
 	}
 
 	err = json.Unmarshal(b, &respBody)
 	if err != nil {
-		return false, fmt.Errorf("error decoding response body: %w", err)
+		return false, 0, fmt.Errorf("error decoding response body: %w", err)
 	}
 
 	for _, s := range respBody {
-		if s.StreamKey == stream.UserID {
-			return true, nil
+		if s.StreamKey == stream.UserID && len(s.VideoStreams) > 0 {
+			return true, len(s.WhepSessions), nil
 		}
 	}
 
-	return false, nil
+	return false, 0, nil
 }
 
 func (s *StreamInfoProvider) GetStreamInfos(ctx context.Context,
@@ -72,7 +78,7 @@ func (s *StreamInfoProvider) GetStreamInfos(ctx context.Context,
 	client := &http.Client{}
 
 	for _, stream := range streams {
-		on, err := checkOnline(ctx, *stream, client)
+		on, viewers, err := checkOnline(ctx, *stream, client)
 		if err != nil {
 			errorCh <- fmt.Errorf("error checking if stream %s is online: %w", stream.UserID, err)
 			return
@@ -87,15 +93,16 @@ func (s *StreamInfoProvider) GetStreamInfos(ctx context.Context,
 			}
 
 			streamInfos = append(streamInfos, domain.StreamInfo{
-				Username: stream.UserID,
-				URL:      url,
-				Query:    stream,
-				IsOnline: on,
+				Username:    stream.UserID,
+				URL:         url,
+				Query:       stream,
+				ViewerCount: viewers,
+				IsOnline:    true,
 			})
 		} else {
 			streamInfos = append(streamInfos, domain.StreamInfo{
 				Query:    stream,
-				IsOnline: on,
+				IsOnline: false,
 			})
 		}
 	}

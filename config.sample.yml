@@ -29,3 +29,5 @@ chats:
         - baseurl: "https://server.broadcastbox.tld"
           # Stream key
           id: "key"
+          # Optional, for a custom page embedding the broadcast-box stream
+          customurl: "https://stream.wrapper.tld"

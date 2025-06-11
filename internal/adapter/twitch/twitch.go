@@ -38,6 +38,7 @@ type twitchResponse struct {
 		Username     string `json:"user_login"`
 		GameName     string `json:"game_name"`
 		Title        string `json:"title"`
+		ViewerCount  int    `json:"viewer_count"`
 		ThumbnailURL string `json:"thumbnail_url"`
 	} `json:"data,omitempty"`
 }
@@ -142,6 +143,7 @@ func (s *StreamInfoProvider) GetStreamInfos(ctx context.Context,
 					Username:     data.Username,
 					Title:        fmt.Sprintf("%s: %s", data.GameName, data.Title),
 					URL:          fmt.Sprintf("%s/%s", twitchBaseURL, data.Username),
+					ViewerCount:  data.ViewerCount,
 					ThumbnailURL: formatTwitchPhotoURL(data.ThumbnailURL),
 					IsOnline:     true,
 				}

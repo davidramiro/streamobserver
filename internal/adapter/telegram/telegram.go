@@ -27,7 +27,13 @@ func NewTelegramSender(b *bot.Bot) *Sender {
 
 // SendStreamInfo generates a message from a domain.StreamInfo and sends it to a chat ID.
 func (s *Sender) SendStreamInfo(ctx context.Context, chatID int64, stream domain.StreamInfo) (int, error) {
-	caption := fmt.Sprintf("%s is streaming %s\n%s\n[%s]", stream.Username, stream.Title, stream.URL, liveText)
+	var viewerInfo string
+	if stream.ViewerCount > -1 {
+		viewerInfo = fmt.Sprintf("for %d viewers", stream.ViewerCount)
+	}
+
+	caption := fmt.Sprintf("%s is streaming %s %s\n%s\n[%s]",
+		stream.Username, stream.Title, viewerInfo, stream.URL, liveText)
 
 	var message *models.Message
 	var err error
@@ -76,7 +82,13 @@ func (s *Sender) UpdateStreamInfo(ctx context.Context, chatID int64, messageID i
 		verb = "was"
 		status = offlineText
 	}
-	caption := fmt.Sprintf("%s %s streaming %s\n%s\n[%s]", stream.Username, verb, stream.Title, stream.URL, status)
+	var viewerInfo string
+	if stream.ViewerCount > -1 {
+		viewerInfo = fmt.Sprintf("for %d viewers", stream.ViewerCount)
+	}
+
+	caption := fmt.Sprintf("%s %s streaming %s %s\n%s\n[%s]", stream.Username, verb, stream.Title,
+		viewerInfo, stream.URL, status)
 
 	var message *models.Message
 	var err error

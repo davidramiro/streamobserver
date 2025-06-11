@@ -148,10 +148,12 @@ func fetch(ctx context.Context,
 	}
 
 	stream <- domain.StreamInfo{
-		Query:        query,
-		Username:     info.Username,
-		Title:        info.Description,
-		URL:          url,
+		Query:    query,
+		Username: info.Username,
+		Title:    info.Description,
+		URL:      url,
+		// TODO: restreamer viewer count not implemented, -1 as skip flag
+		ViewerCount:  -1,
 		ThumbnailURL: info.ThumbnailURL,
 		IsOnline:     true,
 	}

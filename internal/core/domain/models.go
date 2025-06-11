@@ -27,6 +27,7 @@ type StreamInfo struct {
 	Username     string
 	Title        string
 	URL          string
+	ViewerCount  int
 	ThumbnailURL string
 	IsOnline     bool
 }
@@ -35,7 +36,8 @@ func (s StreamInfo) Equals(o StreamInfo) bool {
 	return s.IsOnline == o.IsOnline &&
 		s.Title == o.Title &&
 		s.URL == o.URL &&
-		s.ThumbnailURL == o.ThumbnailURL
+		s.ThumbnailURL == o.ThumbnailURL &&
+		s.ViewerCount == o.ViewerCount
 }
 
 type Observer struct {
