@@ -56,7 +56,7 @@ func checkOnline(ctx context.Context, stream domain.StreamQuery, client *http.Cl
 	}
 
 	for _, s := range respBody {
-		if s.StreamKey == stream.UserID && len(s.VideoStreams) > 0 {
+		if s.StreamKey == stream.UserID {
 			return true, len(s.WhepSessions), nil
 		}
 	}
