@@ -5,7 +5,7 @@ go 1.23.0
 toolchain go1.24.3
 
 require (
-	github.com/go-telegram/bot v1.16.0
+	github.com/go-telegram/bot v1.17.0
 	github.com/rs/zerolog v1.34.0
 	github.com/spf13/viper v1.21.0
 )
